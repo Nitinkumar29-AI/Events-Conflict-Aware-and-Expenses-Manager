@@ -10,9 +10,17 @@
  *   npx prisma db seed
  */
 import { beforeAll, afterAll } from 'vitest'
+import prisma from '@/server/lib/prisma'
 
 beforeAll(async () => {
-  // Nothing required globally; each integration test manages its own connection.
+  const testSemesters = await prisma.semester.findMany({ where: { name: { startsWith: 'TestSem' } } })
+  const testSemIds = testSemesters.map(s => s.id)
+  if (testSemIds.length > 0) {
+    await prisma.receipt.deleteMany({ where: { expense: { semesterId: { in: testSemIds } } } })
+    await prisma.budgetAllocation.deleteMany({ where: { semesterId: { in: testSemIds } } })
+    await prisma.expense.deleteMany({ where: { semesterId: { in: testSemIds } } })
+    await prisma.semester.deleteMany({ where: { id: { in: testSemIds } } })
+  }
 })
 
 afterAll(async () => {

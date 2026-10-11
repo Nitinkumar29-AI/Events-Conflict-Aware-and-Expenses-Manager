@@ -10,6 +10,8 @@ import {
   CalendarDays,
   AlertTriangle,
   Receipt, Bell,
+  Archive,
+  BarChart3,
   PlusCircle,
 } from 'lucide-react'
 
@@ -77,6 +79,18 @@ export function Sidebar() {
         icon: Receipt, // Reusing Receipt icon, could also be PieChart
         show: canViewBudgets,
         badge: 'Core/Exec',
+      },
+      {
+        name: 'Archive',
+        href: '/archive',
+        icon: Archive,
+        show: !isViewer && !!session?.user,
+      },
+      {
+        name: 'Reports',
+        href: '/reports',
+        icon: BarChart3,
+        show: !isViewer && !!session?.user,
       },
     ]
 

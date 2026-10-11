@@ -591,6 +591,10 @@ Universal password for all demo accounts: `DemoPassword123!`
 - `/expenses` — Audit-logged financial ledger with status filtering (`DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`).
 - `/expenses/new` — Safe Decimal(12,2) expense recording bound to semester dates.
 - `/expenses/[id]` — Financial entry detail with approval workflows, locked semester protection, and receipt upload.
+- `/budgets` — Semester budget allocation management and category-level financial utilization tracking.
+- `/notifications` — In-app alerts for conflicts, expense reviews, and event lifecycles.
+- `/archive` — Historical archive querying past events, resolution records, and audit logs.
+- `/reports` — Authoritative event, conflict, financial analytics, and CSV exports.
 
 ### How to Test Features
 
@@ -619,6 +623,22 @@ Universal password for all demo accounts: `DemoPassword123!`
    - Test receipt upload: Select a JPEG/PNG/PDF (< 5MB). The browser calculates the SHA-256 hash client-side and registers the receipt metadata.
    - Log in as `core@acm-demo.college.edu` and click **Approve Expense** (`APPROVED`).
    - Note that if an expense falls into a locked semester, mutations are blocked with an explicit warning banner.
+
+5. **Historical Archive & Institutional Memory (Phase 8):**
+   - Navigate to `/archive`.
+   - Query historical events across statuses (`VERIFIED`, `COMPLETED`, `CANCELLED`, `REJECTED`).
+   - Use search and timeframe filters (`Past Events Only` vs `Upcoming`).
+   - Click **Review & Outcomes** on any event to inspect recorded review notes, historical conflicts, and explicit audit facts.
+   - Note the factual distinction: expected attendees are displayed, while actual attendees and outcomes are transparently indicated as unrecorded in the system.
+   - As `ACM_CORE` or `SUPER_ADMIN`, switch to the **Audit Logs** tab to inspect immutable system mutation records.
+
+6. **Reports, Analytics & CSV Export (Phase 8):**
+   - Navigate to `/reports`.
+   - Inspect the **Events Report** for status, category, venue, and club distribution metrics.
+   - Inspect the **Conflict Report** for resolution breakdown, severity counts, and conflict scores.
+   - Inspect the **Financial Report** for authoritative Decimal budget utilization, allocated sums, approved expenditures, remaining balances, and overspending indicators.
+   - Inspect **Monthly Trends** for multi-month event and spending comparisons with zero-filled historical buckets.
+   - Click **Export CSV** to download server-generated CSV reports. The export engine automatically sanitizes cells against spreadsheet formula injection (`=`, `+`, `-`, `@`, `\t`, `\r`) and applies standard RFC 4180 escaping with UTF-8 BOM encoding.
 
 ### Cloudinary Architecture Note
 

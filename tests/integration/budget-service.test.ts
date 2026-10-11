@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, beforeAll } from 'vitest'
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest'
 import { budgetService } from '@/server/services/budget.service'
 import prisma from '@/server/lib/prisma'
 import { UserRole, ExpenseStatus, AuditAction } from '@prisma/client'
@@ -10,7 +10,17 @@ describe('Phase 6 Budget Service Integration Tests', () => {
   let logisticsCat: any, marketingCat: any, otherCat: any
   let club: any
 
-  
+  afterAll(async () => {
+    const testSemesters = await prisma.semester.findMany({ where: { name: { startsWith: 'TestSem' } } })
+    const testSemIds = testSemesters.map(s => s.id)
+
+    if (testSemIds.length > 0) {
+      await prisma.receipt.deleteMany({ where: { expense: { semesterId: { in: testSemIds } } } })
+      await prisma.budgetAllocation.deleteMany({ where: { semesterId: { in: testSemIds } } })
+      await prisma.expense.deleteMany({ where: { semesterId: { in: testSemIds } } })
+      await prisma.semester.deleteMany({ where: { id: { in: testSemIds } } })
+    }
+  })
 
   beforeAll(async () => {
     // Users

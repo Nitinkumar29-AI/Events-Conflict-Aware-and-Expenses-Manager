@@ -236,3 +236,86 @@ export function assertCanAccessClub(
     )
   }
 }
+
+/**
+ * Resource-aware archive access check.
+ * - SUPER_ADMIN, ACM_CORE, ACM_EXEC: Have institutional archive access.
+ * - CLUB_REP: Permitted if archive query is scoped to their own club.
+ * - VIEWER: Denied.
+ */
+export function canViewArchive(
+  user: SessionUser | null | undefined,
+  targetClubId?: string | null
+): boolean {
+  if (!user) return false
+  if (can(user, 'VIEW_ARCHIVE')) {
+    return true
+  }
+  if (user.role === UserRole.CLUB_REP && user.clubId) {
+    return !targetClubId || targetClubId === user.clubId
+  }
+  return false
+}
+
+/**
+ * Resource-aware reports access check.
+ * - SUPER_ADMIN, ACM_CORE, ACM_EXEC: Have institutional reports access.
+ * - CLUB_REP: Permitted if reports query is scoped to their own club.
+ * - VIEWER: Denied.
+ */
+export function canViewReports(
+  user: SessionUser | null | undefined,
+  targetClubId?: string | null
+): boolean {
+  if (!user) return false
+  if (can(user, 'VIEW_REPORTS')) {
+    return true
+  }
+  if (user.role === UserRole.CLUB_REP && user.clubId) {
+    return !targetClubId || targetClubId === user.clubId
+  }
+  return false
+}
+
+/**
+ * Resource-aware audit log access check.
+ * - Strictly restricted to SUPER_ADMIN and ACM_CORE.
+ */
+export function canViewAudit(
+  user: SessionUser | null | undefined
+): boolean {
+  if (!user) return false
+  return can(user, 'VIEW_AUDIT')
+}
+
+export function assertCanViewArchive(
+  user: SessionUser | null | undefined,
+  targetClubId?: string | null
+): void {
+  if (!canViewArchive(user, targetClubId)) {
+    throw new ForbiddenError(
+      `Forbidden: User with role '${user?.role ?? 'ANONYMOUS'}' cannot view archive${targetClubId ? ` for club '${targetClubId}'` : ''}`
+    )
+  }
+}
+
+export function assertCanViewReports(
+  user: SessionUser | null | undefined,
+  targetClubId?: string | null
+): void {
+  if (!canViewReports(user, targetClubId)) {
+    throw new ForbiddenError(
+      `Forbidden: User with role '${user?.role ?? 'ANONYMOUS'}' cannot view reports${targetClubId ? ` for club '${targetClubId}'` : ''}`
+    )
+  }
+}
+
+export function assertCanViewAudit(
+  user: SessionUser | null | undefined
+): void {
+  if (!canViewAudit(user)) {
+    throw new ForbiddenError(
+      `Forbidden: User with role '${user?.role ?? 'ANONYMOUS'}' lacks permission to view audit logs`
+    )
+  }
+}
