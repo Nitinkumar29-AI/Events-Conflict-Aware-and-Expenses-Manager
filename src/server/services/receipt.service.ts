@@ -3,6 +3,7 @@ import prisma from '@/server/lib/prisma'
 import { SessionUser } from '@/server/types'
 import { canManageExpense, assertCanAccessClub } from '@/server/policies/rbac.policy'
 import { ForbiddenError, NotFoundError, BusinessRuleError, SemesterLockedError } from '@/server/lib/errors'
+import { env } from '@/server/config/env'
 
 export class ReceiptService {
   async addReceipt(user: SessionUser, expenseId: string, data: {
@@ -101,8 +102,8 @@ export class ReceiptService {
     return {
       timestamp,
       signature: 'mock_signature_for_testing',
-      cloudName: process.env.CLOUDINARY_CLOUD_NAME || 'mock_cloud',
-      apiKey: process.env.CLOUDINARY_API_KEY || 'mock_key',
+      cloudName: env.CLOUDINARY_CLOUD_NAME || 'mock_cloud',
+      apiKey: env.CLOUDINARY_API_KEY || 'mock_key',
     }
   }
 }

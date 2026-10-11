@@ -1,0 +1,15 @@
+.git
+.github
+.next
+node_modules
+tests
+coverage
+*.log
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+README.md
+master-audit-report.md
+AGENTS.md

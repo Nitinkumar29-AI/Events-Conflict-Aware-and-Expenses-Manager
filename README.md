@@ -644,6 +644,77 @@ Universal password for all demo accounts: `DemoPassword123!`
 
 Direct client-to-Cloudinary upload ensures that backend servers do not handle heavy binary payloads. In local testing mode without production Cloudinary API credentials, the receipt upload flow generates mock storage URLs while preserving cryptographic SHA-256 client hashing and strict metadata validation in the PostgreSQL database.
 
+---
+
+## Phase 9: Deployment Readiness & Production Hardening
+
+Phase 9 establishes operational reliability, environment secret validation, HTTP security headers, health probing, non-destructive database migrations, and containerization.
+
+### 1. Pre-Deployment Configuration & Secrets
+Environment variables are strictly validated by `src/server/config/env.ts` on startup without leaking secret contents:
+
+| Variable | Requirement | Purpose | Validation Rule |
+|---|:---:|---|---|
+| `DATABASE_URL` | **Required** | PostgreSQL connection pool | Must begin with `postgresql://` or `postgres://` |
+| `AUTH_SECRET` | **Required (Prod)** | Session token cryptographic signing | Minimum 32 characters in production (`openssl rand -base64 32`) |
+| `NODE_ENV` | Optional | Runtime mode | `development` \| `test` \| `production` |
+| `NEXT_PUBLIC_APP_URL`| Optional | Canonical public application URL | Valid URL string (default `http://localhost:3000`) |
+| `GOOGLE_CLIENT_ID` | Optional | Google OAuth SSO identifier | Paired: both ID & Secret must be provided if either is set |
+| `GOOGLE_CLIENT_SECRET`| Optional | Google OAuth SSO secret | Paired with `GOOGLE_CLIENT_ID` |
+| `CLOUDINARY_*` | Optional | Receipt binary storage credentials | Trio: Cloud Name, API Key, and Secret must all be set if any is provided |
+
+### 2. Non-Destructive Database Migrations in Production
+**CRITICAL RULE:** Never execute `prisma migrate reset` or interactive `prisma migrate dev` on a production or persistent database.
+
+To apply pending migrations safely without dropping data:
+```bash
+# Safe production migration script
+npm run db:migrate:prod
+# Directly runs: npx prisma migrate deploy
+```
+
+### 3. Operational Health Check & Liveness Probe (`/api/health`)
+The application exposes a production-ready operational probe:
+- **`GET /api/health`**: Executes a lightweight database connectivity check (`SELECT 1`), measures round-trip latency, reports process uptime, and returns HTTP 200 `UP` or HTTP 503 `DOWN`.
+- **`HEAD /api/health`**: Fast liveness probe returning HTTP 200 or 503 with an empty body for load balancers.
+- **Privacy Guarantee**: Database credentials, passwords, and raw error connection strings are **never** returned in the response payload.
+
+### 4. HTTP Security Headers
+Configured in `next.config.ts` across all routes (`/(.*)`):
+- `X-Frame-Options: DENY` (Anti-Clickjacking)
+- `X-Content-Type-Options: nosniff` (Anti-MIME Sniffing)
+- `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` (HSTS)
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()`
+- `Content-Security-Policy`: Strictly scoped for Next.js App Router, React, Tailwind, and FullCalendar.
+- `poweredByHeader: false` (Disables `X-Powered-By: Next.js` fingerprinting).
+
+### 5. Production Docker Deployment
+A multi-stage `Dockerfile` (Node 22 Alpine) and `docker-compose.yml` are provided for containerized deployment:
+
+```bash
+# 1. Build and run via Docker Compose
+docker compose up -d --build
+
+# 2. Check health status
+curl -i http://localhost:3000/api/health
+
+# 3. Apply migrations in container
+docker compose exec app npx prisma migrate deploy
+```
+
+### 6. Error Boundaries & Operational Resilience
+- `src/app/not-found.tsx`: Clean, styled 404 handler guiding users back to `/dashboard` or `/events`.
+- `src/app/error.tsx`: Client error boundary preventing raw stack trace exposure to end-users in production while logging unique error digests for server debugging.
+- `src/app/global-error.tsx`: Root-level layout error boundary.
+
+---
+
+### Troubleshooting
+
+- **Login Page Runtime Error / Hydration Mismatch**: If you encounter a Next.js hydration mismatch pointing to `<Shield />` or `data-darkreader-mode`, this is caused by the Dark Reader browser extension modifying the DOM. Disable Dark Reader on `localhost` to resolve it.
+- **Missing AUTH_SECRET in Production**: In production mode (`NODE_ENV=production`), `AUTH_SECRET` must be set with at least 32 characters. Run `openssl rand -base64 32` to generate a strong secret.
+
  # # #   T r o u b l e s h o o t i n g 
  
  -   * * L o g i n   P a g e   R u n t i m e   E r r o r   /   H y d r a t i o n   M i s m a t c h * * :   I f   y o u   e n c o u n t e r   a   N e x t . j s   h y d r a t i o n   m i s m a t c h   p o i n t i n g   t o   < S h i e l d   / >   o r   d a t a - d a r k r e a d e r - m o d e ,   t h i s   i s   c a u s e d   b y   t h e   D a r k   R e a d e r   b r o w s e r   e x t e n s i o n   m o d i f y i n g   t h e   D O M .   D i s a b l e   D a r k   R e a d e r   o n   l o c a l h o s t   t o   r e s o l v e   i t . 

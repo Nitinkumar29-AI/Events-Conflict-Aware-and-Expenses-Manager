@@ -9,11 +9,12 @@ import { can, canAccessClub, canManageEvent, canManageExpense, assertCan, assert
 import type { SessionUser } from '@/server/types'
 
 import { authenticateCredentials } from '@/server/lib/auth-credentials'
+import { env } from '@/server/config/env'
 
 export { authenticateCredentials }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? 'acm-incursion-jwt-secret-dev-2026',
+  secret: env.AUTH_SECRET || env.NEXTAUTH_SECRET || 'acm-incursion-jwt-secret-dev-2026',
   session: {
     strategy: 'jwt',
   },
@@ -26,11 +27,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       authorize: authenticateCredentials,
     }),
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
       ? [
           Google({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
           }),
         ]
       : []),
@@ -44,7 +45,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         // Domain restriction enforcement
-        const allowedDomain = process.env.ALLOWED_EMAIL_DOMAIN?.trim().toLowerCase()
+        const allowedDomain = env.ALLOWED_EMAIL_DOMAIN?.trim().toLowerCase()
         if (allowedDomain) {
           const cleanDomain = allowedDomain.startsWith('@') ? allowedDomain.slice(1) : allowedDomain
           const emailDomain = email.split('@')[1]
