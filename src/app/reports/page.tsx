@@ -388,7 +388,7 @@ export default function ReportsPage() {
                 <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                   <div className="text-xs text-zinc-400">Total Semester Budget</div>
                   <div className="text-xl font-bold text-white mt-1 font-mono">
-                    ₹{financialReport.totalBudget}
+                    {financialReport.totalBudget !== null ? `₹${financialReport.totalBudget}` : 'N/A (Institutional)'}
                   </div>
                 </div>
                 <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
@@ -400,7 +400,7 @@ export default function ReportsPage() {
                 <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                   <div className="text-xs text-zinc-400">Unallocated Budget</div>
                   <div className="text-xl font-bold text-zinc-300 mt-1 font-mono">
-                    ₹{financialReport.unallocatedBudget}
+                    {financialReport.unallocatedBudget !== null ? `₹${financialReport.unallocatedBudget}` : 'N/A (Institutional)'}
                   </div>
                 </div>
                 <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
@@ -458,10 +458,16 @@ export default function ReportsPage() {
                             ₹{cat.remainingAmount}
                           </td>
                           <td className="py-2.5 px-4 text-right font-mono text-zinc-300">
-                            {cat.utilizationPercentage}%
+                            {cat.utilizationPercentage !== null && cat.utilizationPercentage !== undefined
+                              ? `${cat.utilizationPercentage}%`
+                              : 'N/A'}
                           </td>
                           <td className="py-2.5 px-4 text-center">
-                            {cat.overspent ? (
+                            {cat.isUnallocated ? (
+                              <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800 text-[10px]">
+                                UNALLOCATED
+                              </span>
+                            ) : cat.overspent ? (
                               <span className="px-2 py-0.5 rounded bg-red-950 text-red-400 border border-red-800 text-[10px]">
                                 OVERSPENT
                               </span>

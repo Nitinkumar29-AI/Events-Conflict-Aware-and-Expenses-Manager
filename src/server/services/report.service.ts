@@ -340,8 +340,13 @@ export class ReportService {
 
     const totalSemesterBudget = new Decimal(semester.totalBudget)
     const unallocatedBudget = totalSemesterBudget.minus(totalAllocated)
-    const remainingOverall = totalSemesterBudget.minus(totalSpent)
-    const semesterOverspent = remainingOverall.isNegative()
+
+    // For CLUB_REP: institutional campus-wide totals are confidential
+    const isClubRep = user.role === 'CLUB_REP'
+    const remainingBudget = isClubRep
+      ? totalAllocated.minus(totalSpent)
+      : totalSemesterBudget.minus(totalSpent)
+    const semesterOverspent = remainingBudget.isNegative()
 
     // Build category breakdown
     const categoryBreakdown = allocations.map((a) => {
@@ -350,11 +355,10 @@ export class ReportService {
       const allocated = new Decimal(a.allocatedAmount)
       const remaining = allocated.minus(spent)
       const overspent = remaining.isNegative()
-      const utilizationPercentage = allocated.isZero()
-        ? spent.isZero()
-          ? 0
-          : 100
-        : spent.dividedBy(allocated).times(100).toNumber()
+      const isUnallocated = allocated.isZero()
+      const utilizationPercentage = isUnallocated
+        ? null
+        : parseFloat(spent.dividedBy(allocated).times(100).toFixed(2))
 
       delete spentByCategory[a.categoryId]
 
@@ -367,7 +371,8 @@ export class ReportService {
         allocatedAmount: allocated.toFixed(2),
         spentAmount: spent.toFixed(2),
         remainingAmount: remaining.toFixed(2),
-        utilizationPercentage: parseFloat(utilizationPercentage.toFixed(2)),
+        utilizationPercentage,
+        isUnallocated,
         overspent,
       }
     })
@@ -383,7 +388,8 @@ export class ReportService {
         allocatedAmount: '0.00',
         spentAmount: spentObj.amount.toFixed(2),
         remainingAmount: spentObj.amount.negated().toFixed(2),
-        utilizationPercentage: 100,
+        utilizationPercentage: null,
+        isUnallocated: true,
         overspent: true,
       })
     }
@@ -396,11 +402,11 @@ export class ReportService {
         endDate: semester.endDate,
         isLocked: semester.isLocked,
       },
-      totalBudget: totalSemesterBudget.toFixed(2),
+      totalBudget: isClubRep ? null : totalSemesterBudget.toFixed(2),
       totalAllocated: totalAllocated.toFixed(2),
-      unallocatedBudget: unallocatedBudget.toFixed(2),
+      unallocatedBudget: isClubRep ? null : unallocatedBudget.toFixed(2),
       totalSpent: totalSpent.toFixed(2),
-      remainingBudget: remainingOverall.toFixed(2),
+      remainingBudget: remainingBudget.toFixed(2),
       semesterOverspent,
       categoryBreakdown,
       clubSpendingBreakdown: Object.values(spentByClub).map((c) => ({

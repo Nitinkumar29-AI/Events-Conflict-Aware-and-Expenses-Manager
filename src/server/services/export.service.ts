@@ -16,10 +16,16 @@ export function sanitizeCsvCell(value: any): string {
   }
   let str = String(value)
 
-  // Defense against CSV / Spreadsheet formula injection:
-  // If the cell starts with formula operators '=', '+', '-', '@', '\t', '\r', prefix with single quote "'"
-  if (/^[\=\+\-\@\t\r]/.test(str)) {
-    str = `'${str}`
+  // Pure numeric values (including negative integers and decimals like -2000.00) are safe numbers, not formulas.
+  const isPureNumber = /^-?\d+(\.\d+)?$/.test(str.trim())
+
+  if (!isPureNumber) {
+    const trimmed = str.trimStart()
+    // Defense against CSV / Spreadsheet formula injection:
+    // If the raw or trimmed string starts with formula operators '=', '+', '-', '@', '\t', '\r', prefix with single quote "'"
+    if (/^[\=\+\-\@\t\r]/.test(str) || /^[\=\+\-\@\t\r]/.test(trimmed)) {
+      str = `'${str}`
+    }
   }
 
   // Standard CSV escaping: if value contains comma, quotes, or newlines, quote the field and double-up quotes
@@ -115,7 +121,7 @@ export class ExportService {
         e.expectedAttendees,
         'Not Recorded',
         e.submittedBy.name,
-        user.role === 'CLUB_REP' && e.club.code !== user.clubId ? '' : e.submittedBy.email,
+        user.role === 'CLUB_REP' && e.clubId !== user.clubId ? '' : e.submittedBy.email,
       ])
 
       const filename = `events-report-${new Date().toISOString().slice(0, 10)}.csv`
@@ -148,8 +154,8 @@ export class ExportService {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          eventA: { select: { id: true, title: true, club: { select: { name: true } } } },
-          eventB: { select: { id: true, title: true, club: { select: { name: true } } } },
+          eventA: { select: { id: true, title: true, clubId: true, club: { select: { name: true } } } },
+          eventB: { select: { id: true, title: true, clubId: true, club: { select: { name: true } } } },
           resolvedBy: { select: { name: true } },
         },
       })
@@ -171,22 +177,33 @@ export class ExportService {
         'Created At (UTC)',
       ]
 
-      const rows = conflicts.map((c) => [
-        c.id,
-        c.conflictType,
-        c.severity,
-        c.status,
-        c.eventA.title,
-        c.eventA.club.name,
-        c.eventB.title,
-        c.eventB.club.name,
-        c.overlapMinutes ?? '',
-        c.conflictScore ?? '',
-        c.description,
-        c.status,
-        c.resolvedBy?.name || '',
-        c.createdAt.toISOString(),
-      ])
+      const rows = conflicts.map((c) => {
+        const eventATitle =
+          user.role === 'CLUB_REP' && c.eventA.clubId !== user.clubId
+            ? '[Confidential - External Club Event]'
+            : c.eventA.title
+        const eventBTitle =
+          user.role === 'CLUB_REP' && c.eventB.clubId !== user.clubId
+            ? '[Confidential - External Club Event]'
+            : c.eventB.title
+
+        return [
+          c.id,
+          c.conflictType,
+          c.severity,
+          c.status,
+          eventATitle,
+          c.eventA.club.name,
+          eventBTitle,
+          c.eventB.club.name,
+          c.overlapMinutes ?? '',
+          c.conflictScore ?? '',
+          c.description,
+          c.status,
+          c.resolvedBy?.name || '',
+          c.createdAt.toISOString(),
+        ]
+      })
 
       const filename = `conflicts-report-${new Date().toISOString().slice(0, 10)}.csv`
       return { filename, csv: toCsvString(headers, rows) }
@@ -213,7 +230,9 @@ export class ExportService {
         cat.allocatedAmount,
         cat.spentAmount,
         cat.remainingAmount,
-        `${cat.utilizationPercentage}%`,
+        cat.utilizationPercentage !== null && cat.utilizationPercentage !== undefined
+          ? `${cat.utilizationPercentage}%`
+          : 'N/A (Unallocated)',
         cat.overspent ? 'YES' : 'NO',
       ])
 

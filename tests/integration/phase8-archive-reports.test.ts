@@ -219,7 +219,7 @@ describe('Phase 8 — Archive, Institutional Memory, Reports & CSV Export Tests'
       })
     })
 
-    it('CLUB_REP receives only conflicts involving their club', async () => {
+    it('CLUB_REP receives only conflicts involving their club and opposing club event titles are redacted', async () => {
       const res = await archiveService.getHistoricalConflicts(codingClubRep, {
         page: 1,
         limit: 20,
@@ -228,6 +228,13 @@ describe('Phase 8 — Archive, Institutional Memory, Reports & CSV Export Tests'
       res.conflicts.forEach((c) => {
         const isCodingInvolved = c.eventA.clubId === codingClub.id || c.eventB.clubId === codingClub.id
         expect(isCodingInvolved).toBe(true)
+
+        if (c.eventA.clubId !== codingClub.id) {
+          expect(c.eventA.title).toBe('[Confidential - External Club Event]')
+        }
+        if (c.eventB.clubId !== codingClub.id) {
+          expect(c.eventB.title).toBe('[Confidential - External Club Event]')
+        }
       })
     })
   })
@@ -242,14 +249,17 @@ describe('Phase 8 — Archive, Institutional Memory, Reports & CSV Export Tests'
       expect(report.totalBudget).toBe(new Decimal(activeSemester.totalBudget).toFixed(2))
 
       // Verification of Decimal math
+      expect(report.totalBudget).not.toBeNull()
+      expect(report.unallocatedBudget).not.toBeNull()
+      expect(report.remainingBudget).not.toBeNull()
       const totalAllocated = new Decimal(report.totalAllocated)
-      const totalBudget = new Decimal(report.totalBudget)
+      const totalBudget = new Decimal(report.totalBudget!)
       const unallocated = totalBudget.minus(totalAllocated)
-      expect(new Decimal(report.unallocatedBudget).toFixed(2)).toBe(unallocated.toFixed(2))
+      expect(new Decimal(report.unallocatedBudget!).toFixed(2)).toBe(unallocated.toFixed(2))
 
       const totalSpent = new Decimal(report.totalSpent)
       const remaining = totalBudget.minus(totalSpent)
-      expect(new Decimal(report.remainingBudget).toFixed(2)).toBe(remaining.toFixed(2))
+      expect(new Decimal(report.remainingBudget!).toFixed(2)).toBe(remaining.toFixed(2))
 
       // Category breakdown checks
       expect(Array.isArray(report.categoryBreakdown)).toBe(true)
@@ -309,6 +319,67 @@ describe('Phase 8 — Archive, Institutional Memory, Reports & CSV Export Tests'
         await prisma.expense.delete({ where: { id: testExpenseRejected.id } })
       }
     })
+
+    it('protects institutional budget privacy when CLUB_REP requests financial report', async () => {
+      const repReport = await reportService.getFinancialReport(codingClubRep, {
+        semesterId: activeSemester.id,
+      })
+
+      // Institutional total budget and institutional unallocated budget must be hidden (null)
+      expect(repReport.totalBudget).toBeNull()
+      expect(repReport.unallocatedBudget).toBeNull()
+
+      // Remaining budget must reflect the club's remaining balance: totalAllocated - totalSpent
+      const expectedRemaining = new Decimal(repReport.totalAllocated).minus(repReport.totalSpent).toFixed(2)
+      expect(repReport.remainingBudget).toBe(expectedRemaining)
+
+      // Category breakdown must contain either allocations for Coding Club or unallocated items
+      repReport.categoryBreakdown.forEach((cat: any) => {
+        if (cat.clubId) {
+          expect(cat.clubId).toBe(codingClub.id)
+        }
+      })
+    })
+
+    it('marks unallocated categories with null utilizationPercentage and isUnallocated flag', async () => {
+      // Create a temporary approved expense in a category with no allocation for this club
+      const unallocatedCat = await prisma.expenseCategory.create({
+        data: {
+          name: `Unallocated Test Cat ${Date.now()}`,
+          description: 'Testing unallocated spending',
+        },
+      })
+
+      const testExpense = await prisma.expense.create({
+        data: {
+          title: 'Unallocated Category Expense Test',
+          amount: new Decimal('150.00'),
+          date: new Date('2026-10-10T12:00:00Z'),
+          status: ExpenseStatus.APPROVED,
+          clubId: codingClub.id,
+          semesterId: activeSemester.id,
+          categoryId: unallocatedCat.id,
+          createdByUserId: coreUser.id,
+        },
+      })
+
+      try {
+        const report = await reportService.getFinancialReport(coreUser, {
+          semesterId: activeSemester.id,
+        })
+
+        const item = report.categoryBreakdown.find((c: any) => c.categoryId === unallocatedCat.id)
+        expect(item).toBeDefined()
+        expect(item!.allocatedAmount).toBe('0.00')
+        expect(item!.spentAmount).toBe('150.00')
+        expect(item!.utilizationPercentage).toBeNull()
+        expect(item!.isUnallocated).toBe(true)
+        expect(item!.overspent).toBe(true)
+      } finally {
+        await prisma.expense.delete({ where: { id: testExpense.id } })
+        await prisma.expenseCategory.delete({ where: { id: unallocatedCat.id } })
+      }
+    })
   })
 
   describe('5. Monthly Trends', () => {
@@ -328,15 +399,23 @@ describe('Phase 8 — Archive, Institutional Memory, Reports & CSV Export Tests'
   })
 
   describe('6. CSV Export & Formula Injection Prevention', () => {
-    it('sanitizes formula trigger characters (=, +, -, @, \\t, \\r)', () => {
+    it('sanitizes formula trigger characters (=, +, -, @, \\t, \\r) including leading whitespace', () => {
       expect(sanitizeCsvCell('=SUM(A1:A10)')).toBe("'=SUM(A1:A10)")
+      expect(sanitizeCsvCell('  =SUM(A1:A10)')).toBe("'  =SUM(A1:A10)")
       expect(sanitizeCsvCell('+cmd|/c')).toBe("'+cmd|/c")
+      expect(sanitizeCsvCell('   +cmd|/c')).toBe("'   +cmd|/c")
       expect(sanitizeCsvCell('-danger')).toBe("'-danger")
+      expect(sanitizeCsvCell('  -danger')).toBe("'  -danger")
       expect(sanitizeCsvCell('@ATTACK')).toBe("'@ATTACK")
+      expect(sanitizeCsvCell('  @ATTACK')).toBe("'  @ATTACK")
       expect(sanitizeCsvCell('\tTabInj')).toBe("'\tTabInj")
       expect(sanitizeCsvCell('Safe Text')).toBe('Safe Text')
       expect(sanitizeCsvCell(123)).toBe('123')
       expect(sanitizeCsvCell(null)).toBe('')
+      // Legitimate negative financial numbers must NOT be prepended with single quote
+      expect(sanitizeCsvCell(-2000)).toBe('-2000')
+      expect(sanitizeCsvCell('-2000.00')).toBe('-2000.00')
+      expect(sanitizeCsvCell('-0.50')).toBe('-0.50')
     })
 
     it('correctly escapes quotes and commas in CSV cells', () => {
@@ -389,6 +468,23 @@ describe('Phase 8 — Archive, Institutional Memory, Reports & CSV Export Tests'
 
       // Must not contain robotics club code in exports for Coding Club rep
       expect(res.csv).not.toContain(',RC,')
+    })
+
+    it('redacts opposing club event titles when CLUB_REP exports conflicts CSV', async () => {
+      const res = await exportService.exportReport(codingClubRep, {
+        type: 'conflicts',
+        limit: 50,
+      })
+
+      expect(res.csv.charCodeAt(0)).toBe(0xfeff)
+      // Check that if robotics club is an opposing club, the other event title is redacted
+      const lines = res.csv.split('\r\n').slice(1).filter(Boolean)
+      lines.forEach((line) => {
+        // If line contains Robotics Club, it should also contain [Confidential - External Club Event]
+        if (line.includes('Robotics Club')) {
+          expect(line).toContain('[Confidential - External Club Event]')
+        }
+      })
     })
   })
 

@@ -226,7 +226,20 @@ export class ArchiveService {
     }
 
     const now = new Date()
-    const allConflicts = [...event.conflictsAsA, ...event.conflictsAsB]
+    const allConflicts = [...event.conflictsAsA, ...event.conflictsAsB].map((c: any) => {
+      if (user.role === 'CLUB_REP') {
+        return {
+          ...c,
+          eventA: c.eventA && c.eventA.clubId !== user.clubId
+            ? { ...c.eventA, title: '[Confidential - External Club Event]' }
+            : c.eventA,
+          eventB: c.eventB && c.eventB.clubId !== user.clubId
+            ? { ...c.eventB, title: '[Confidential - External Club Event]' }
+            : c.eventB,
+        }
+      }
+      return c
+    })
 
     return {
       event,
@@ -345,8 +358,23 @@ export class ArchiveService {
       }),
     ])
 
+    const sanitizedConflicts = conflicts.map((c) => {
+      if (user.role === 'CLUB_REP') {
+        return {
+          ...c,
+          eventA: c.eventA.clubId !== user.clubId
+            ? { ...c.eventA, title: '[Confidential - External Club Event]' }
+            : c.eventA,
+          eventB: c.eventB.clubId !== user.clubId
+            ? { ...c.eventB, title: '[Confidential - External Club Event]' }
+            : c.eventB,
+        }
+      }
+      return c
+    })
+
     return {
-      conflicts,
+      conflicts: sanitizedConflicts,
       total,
       page,
       limit,
