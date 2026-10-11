@@ -46,19 +46,23 @@ ENV HOSTNAME="0.0.0.0"
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy runtime assets and dependencies
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/prisma ./prisma
+# Copy runtime assets and dependencies with correct non-root ownership
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+
+# Ensure .next cache directory exists and is writable by nextjs
+RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next
 
 USER nextjs
 
 EXPOSE 3000
 
-# Container healthcheck using the operational /api/health endpoint
+# Container liveness check using the lightweight liveness probe
+# Prevents container restart loops during temporary database maintenance
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health?probe=liveness || exit 1
 
 CMD ["npm", "run", "start"]

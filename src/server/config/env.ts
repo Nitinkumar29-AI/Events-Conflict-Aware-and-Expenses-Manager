@@ -38,7 +38,7 @@ export const envSchema = z
     CLOUDINARY_API_SECRET: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    // 1. Auth secret enforcement
+    // 1. Auth secret and production URL enforcement
     const secret = data.AUTH_SECRET || data.NEXTAUTH_SECRET
     if (data.NODE_ENV === 'production') {
       if (!secret) {
@@ -52,6 +52,20 @@ export const envSchema = z
           code: z.ZodIssueCode.custom,
           path: ['AUTH_SECRET'],
           message: 'AUTH_SECRET must be at least 32 characters long in production.',
+        })
+      }
+
+      // Production requires a real application URL and cannot silently fall back to localhost
+      const isLocalhost =
+        !data.NEXT_PUBLIC_APP_URL ||
+        data.NEXT_PUBLIC_APP_URL.includes('localhost') ||
+        data.NEXT_PUBLIC_APP_URL.includes('127.0.0.1')
+      if (isLocalhost) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['NEXT_PUBLIC_APP_URL'],
+          message:
+            'NEXT_PUBLIC_APP_URL must be configured with a valid public domain in production (cannot silently fall back to localhost or 127.0.0.1).',
         })
       }
     }

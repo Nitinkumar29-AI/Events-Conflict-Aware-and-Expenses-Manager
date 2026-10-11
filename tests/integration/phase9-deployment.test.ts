@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { NextRequest } from 'next/server'
 import { validateEnv, getValidatedEnv, envSchema } from '@/server/config/env'
 import { GET as healthGet, HEAD as healthHead } from '@/app/api/health/route'
 import nextConfig from '../../next.config'
@@ -68,6 +69,34 @@ describe('Phase 9 — Deployment Readiness, Hardening & Operational Reliability 
       expect(devMode.success).toBe(true)
     })
 
+    it('enforces valid domain for NEXT_PUBLIC_APP_URL in production and rejects localhost/127.0.0.1', () => {
+      const localhostProd = validateEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://localhost:5432/acm',
+        AUTH_SECRET: 'this-is-a-very-secure-32-char-secret-key-12345!',
+        NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
+      })
+      expect(localhostProd.success).toBe(false)
+      expect(localhostProd.errors?.some((e) => e.includes('NEXT_PUBLIC_APP_URL'))).toBe(true)
+
+      const loopbackProd = validateEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://localhost:5432/acm',
+        AUTH_SECRET: 'this-is-a-very-secure-32-char-secret-key-12345!',
+        NEXT_PUBLIC_APP_URL: 'http://127.0.0.1:3000',
+      })
+      expect(loopbackProd.success).toBe(false)
+      expect(loopbackProd.errors?.some((e) => e.includes('NEXT_PUBLIC_APP_URL'))).toBe(true)
+
+      const validProd = validateEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://localhost:5432/acm',
+        AUTH_SECRET: 'this-is-a-very-secure-32-char-secret-key-12345!',
+        NEXT_PUBLIC_APP_URL: 'https://acm.college.edu',
+      })
+      expect(validProd.success).toBe(true)
+    })
+
     it('validates Google OAuth co-dependency requirement (both required if either set)', () => {
       // Only Client ID provided
       const onlyId = validateEnv({
@@ -133,22 +162,34 @@ describe('Phase 9 — Deployment Readiness, Hardening & Operational Reliability 
   })
 
   describe('2. Operational Health Check & Liveness Probe (/api/health)', () => {
-    it('GET /api/health returns 200 with UP status and healthy database probe', async () => {
+    it('GET /api/health returns 200 with UP status, readiness probe, and healthy database check', async () => {
       const response = await healthGet()
       expect(response.status).toBe(200)
 
       const body = await response.json()
       expect(body.status).toBe('UP')
+      expect(body.probe).toBe('readiness')
       expect(body.environment).toBeDefined()
       expect(typeof body.uptimeSeconds).toBe('number')
-      expect(body.checks.database.status).toBe('HEALTHY')
-      expect(typeof body.checks.database.latencyMs).toBe('number')
+      expect(body.checks?.database.status).toBe('HEALTHY')
+      expect(typeof body.checks?.database.latencyMs).toBe('number')
 
       // Verify ISO-8601 UTC timestamp
       expect(body.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
 
       // Verify no-cache headers
       expect(response.headers.get('Cache-Control')).toContain('no-store')
+    })
+
+    it('GET /api/health?probe=liveness returns fast 200 without executing database queries', async () => {
+      const req = new NextRequest('http://localhost:3000/api/health?probe=liveness')
+      const response = await healthGet(req)
+      expect(response.status).toBe(200)
+
+      const body = await response.json()
+      expect(body.status).toBe('UP')
+      expect(body.probe).toBe('liveness')
+      expect(body.checks).toBeUndefined()
     })
 
     it('GET /api/health never leaks internal database passwords or connection strings', async () => {
@@ -162,6 +203,14 @@ describe('Phase 9 — Deployment Readiness, Hardening & Operational Reliability 
 
     it('HEAD /api/health returns 200 with empty body for fast liveness probing', async () => {
       const response = await healthHead()
+      expect(response.status).toBe(200)
+      const text = await response.text()
+      expect(text).toBe('')
+    })
+
+    it('HEAD /api/health?probe=readiness probes database connectivity', async () => {
+      const req = new NextRequest('http://localhost:3000/api/health?probe=readiness')
+      const response = await healthHead(req)
       expect(response.status).toBe(200)
       const text = await response.text()
       expect(text).toBe('')
@@ -193,6 +242,10 @@ describe('Phase 9 — Deployment Readiness, Hardening & Operational Reliability 
       expect(headerMap['Strict-Transport-Security']).toContain('max-age=63072000')
       expect(headerMap['Permissions-Policy']).toContain('camera=()')
       expect(headerMap['Content-Security-Policy']).toContain("default-src 'self'")
+      expect(headerMap['Content-Security-Policy']).toContain("connect-src 'self' https://api.cloudinary.com https://accounts.google.com")
+      expect(headerMap['Content-Security-Policy']).toContain("base-uri 'self'")
+      expect(headerMap['Content-Security-Policy']).toContain("form-action 'self' https://accounts.google.com")
+      expect(headerMap['Content-Security-Policy']).toContain("font-src 'self' data:")
       expect(headerMap['Content-Security-Policy']).toContain("frame-ancestors 'none'")
     })
   })
