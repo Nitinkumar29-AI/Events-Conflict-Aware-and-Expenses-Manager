@@ -279,18 +279,29 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
     )
   }
 
-  // RBAC permissions check
-  const isOwner = canManageClubResource(user?.role, user?.clubId, expense.clubId)
+  // Zero-trust creator & RBAC permissions evaluation
+  const isCreator = Boolean(user?.id && expense.createdBy?.id && user.id === expense.createdBy.id)
+  const isCoreOrAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ACM_CORE'
   const isSemesterLocked = expense.semester?.isLocked
 
-  const canSubmit = isOwner && expense.status === 'DRAFT' && !isSemesterLocked
+  // Creator-only actions: Submitting draft and uploading proof receipts
+  const canSubmit = isCreator && expense.status === 'DRAFT' && !isSemesterLocked
+  const canAddReceipt =
+    isCreator &&
+    (expense.status === 'DRAFT' || expense.status === 'REJECTED') &&
+    !isSemesterLocked
+
+  // Deletion: Allowed for the creator or institutional admins on unapproved expenses
+  const canDelete =
+    (isCreator || isCoreOrAdmin) &&
+    (expense.status === 'DRAFT' || expense.status === 'REJECTED') &&
+    !isSemesterLocked
+
+  // Administrative moderation actions: Preserved for authorized institutional authorities
   const canApprove =
     expense.status === 'SUBMITTED' && canClient(user?.role, 'APPROVE_EXPENSE') && !isSemesterLocked
   const canReject =
     expense.status === 'SUBMITTED' && canClient(user?.role, 'REJECT_EXPENSE') && !isSemesterLocked
-  const canDelete =
-    isOwner && (expense.status === 'DRAFT' || expense.status === 'REJECTED') && !isSemesterLocked
-  const canAddReceipt = isOwner && !isSemesterLocked
 
   return (
     <AppShell>

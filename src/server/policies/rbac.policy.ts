@@ -171,6 +171,37 @@ export function canManageEvent(
 }
 
 /**
+ * Creator ownership predicate for events.
+ * Strict zero-trust: Verifies that the authenticated user is the exact author who submitted the event.
+ */
+export function isEventCreator(
+  user: SessionUser | null | undefined,
+  event: { submittedByUserId: string }
+): boolean {
+  if (!user || !user.id) return false
+  return user.id === event.submittedByUserId
+}
+
+/**
+ * Pure predicate: Evaluates whether a user may edit an event's ordinary editable fields.
+ * Rules:
+ * 1. Must hold UPDATE_EVENT permission.
+ * 2. Must be the authenticated creator (submittedByUserId === user.id).
+ * 3. Must have jurisdiction over the event's club.
+ * 4. Event must be in an editable lifecycle status (DRAFT or SUBMITTED).
+ */
+export function canEditEvent(
+  user: SessionUser | null | undefined,
+  event: { submittedByUserId: string; clubId: string; status: string }
+): boolean {
+  if (!user) return false
+  if (!can(user, 'UPDATE_EVENT')) return false
+  if (!isEventCreator(user, event)) return false
+  if (!canAccessClub(user, event.clubId)) return false
+  return event.status === 'DRAFT' || event.status === 'SUBMITTED'
+}
+
+/**
  * Resource-aware expense ownership check.
  * Verifies that the user has UPDATE_EXPENSE permission AND access to the expense's owning club.
  */
@@ -181,6 +212,67 @@ export function canManageExpense(
   if (!user) return false
   if (!can(user, 'UPDATE_EXPENSE')) return false
   return canAccessClub(user, expense.clubId)
+}
+
+/**
+ * Creator ownership predicate for expenses.
+ * Strict zero-trust: Verifies that the authenticated user is the exact author who created the expense.
+ */
+export function isExpenseCreator(
+  user: SessionUser | null | undefined,
+  expense: { createdByUserId: string }
+): boolean {
+  if (!user || !user.id) return false
+  return user.id === expense.createdByUserId
+}
+
+/**
+ * Pure predicate: Evaluates whether a user may edit an expense's ordinary editable fields.
+ * Rules:
+ * 1. Must hold UPDATE_EXPENSE permission.
+ * 2. Must be the authenticated creator (createdByUserId === user.id).
+ * 3. Must have jurisdiction over the expense's club.
+ * 4. Expense must be in an editable lifecycle status (DRAFT or REJECTED).
+ */
+export function canEditExpense(
+  user: SessionUser | null | undefined,
+  expense: { createdByUserId: string; clubId: string; status: string }
+): boolean {
+  if (!user) return false
+  if (!can(user, 'UPDATE_EXPENSE')) return false
+  if (!isExpenseCreator(user, expense)) return false
+  if (!canAccessClub(user, expense.clubId)) return false
+  return expense.status === 'DRAFT' || expense.status === 'REJECTED'
+}
+
+/**
+ * Assert helper: Throws ForbiddenError if user is not the event creator.
+ */
+export function assertIsEventCreator(
+  user: SessionUser | null | undefined,
+  event: { submittedByUserId: string },
+  customMessage?: string
+): void {
+  if (!isEventCreator(user, event)) {
+    throw new ForbiddenError(
+      customMessage ?? 'Forbidden: Only the event creator can modify this event.'
+    )
+  }
+}
+
+/**
+ * Assert helper: Throws ForbiddenError if user is not the expense creator.
+ */
+export function assertIsExpenseCreator(
+  user: SessionUser | null | undefined,
+  expense: { createdByUserId: string },
+  customMessage?: string
+): void {
+  if (!isExpenseCreator(user, expense)) {
+    throw new ForbiddenError(
+      customMessage ?? 'Forbidden: Only the expense creator can modify this expense.'
+    )
+  }
 }
 
 /**

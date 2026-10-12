@@ -20,6 +20,12 @@ export class ReceiptService {
     })
 
     if (!expense) throw new NotFoundError('Expense', expenseId)
+
+    // Zero-trust creator check: Only the expense creator can upload receipts
+    if (expense.createdByUserId !== user.id) {
+      throw new ForbiddenError('Forbidden: Only the expense creator can upload receipts to this expense.')
+    }
+
     if (!canManageExpense(user, expense)) {
       throw new ForbiddenError(`Cannot add receipt to expense for club '${expense.clubId}'`)
     }
@@ -91,13 +97,22 @@ export class ReceiptService {
   }
 
   // Generate Cloudinary Signature
-  generateSignature(user: SessionUser, expenseId: string) {
-    // In production, we would use Cloudinary SDK:
-    // const timestamp = Math.round(new Date().getTime() / 1000)
-    // const signature = cloudinary.utils.api_sign_request({ timestamp, folder: 'receipts' }, process.env.CLOUDINARY_API_SECRET!)
-    
-    // For local dev / architecture completeness without hardcoding logic:
-    // The prompt: "If Cloudinary is not yet configured, create a clean abstraction/service so local development and tests do not require production Cloudinary credentials."
+  async generateSignature(user: SessionUser, expenseId: string) {
+    const expense = await prisma.expense.findFirst({
+      where: { id: expenseId, deletedAt: null },
+    })
+
+    if (!expense) throw new NotFoundError('Expense', expenseId)
+
+    // Zero-trust creator check: Only the expense creator can generate upload signatures
+    if (expense.createdByUserId !== user.id) {
+      throw new ForbiddenError('Forbidden: Only the expense creator can generate upload signatures.')
+    }
+
+    if (!canManageExpense(user, expense)) {
+      throw new ForbiddenError(`Cannot generate upload signature for club '${expense.clubId}'`)
+    }
+
     const timestamp = Math.round(Date.now() / 1000)
     return {
       timestamp,

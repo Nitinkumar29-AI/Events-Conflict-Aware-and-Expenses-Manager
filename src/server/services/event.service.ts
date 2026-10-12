@@ -292,7 +292,12 @@ export class EventService {
       throw new NotFoundError('Event', eventId)
     }
 
-    // Ownership check
+    // Zero-trust creator check: Only the authenticated creator may edit ordinary fields
+    if (event.submittedByUserId !== user.id) {
+      throw new ForbiddenError('Forbidden: Only the event creator can edit this event.')
+    }
+
+    // Ownership check (ensures user still has authority for the event's club)
     if (!canManageEvent(user, event)) {
       throw new ForbiddenError(`Forbidden: Cannot edit event for club '${event.clubId}'`)
     }
@@ -370,7 +375,13 @@ export class EventService {
       throw new NotFoundError('Event', eventId)
     }
 
-    // Ownership check: ACM_CORE/SUPER_ADMIN or owning club rep
+    // Ownership check: Creator or institutional administration (ACM_CORE/SUPER_ADMIN)
+    const isCreator = event.submittedByUserId === user.id
+    const isCoreOrAdmin = user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ACM_CORE
+    if (!isCreator && !isCoreOrAdmin) {
+      throw new ForbiddenError('Forbidden: Only the event creator or an administrator can delete this event.')
+    }
+
     if (!canManageEvent(user, event)) {
       throw new ForbiddenError(`Forbidden: Cannot delete event for club '${event.clubId}'`)
     }
@@ -410,6 +421,11 @@ export class EventService {
 
     if (!event) {
       throw new NotFoundError('Event', eventId)
+    }
+
+    // Only the authenticated creator can submit their draft
+    if (event.submittedByUserId !== user.id) {
+      throw new ForbiddenError('Forbidden: Only the event creator can submit this event.')
     }
 
     if (!canManageEvent(user, event)) {

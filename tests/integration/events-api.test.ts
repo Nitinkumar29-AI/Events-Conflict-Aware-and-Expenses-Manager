@@ -26,6 +26,7 @@ const prisma = new PrismaClient()
 
 describe('Events & Calendar API Route Handlers (Integration)', () => {
   let codingRepUser: any
+  let roboticsRepUser: any
   let acmCoreUser: any
   let viewerUser: any
 
@@ -35,6 +36,7 @@ describe('Events & Calendar API Route Handlers (Integration)', () => {
 
   beforeAll(async () => {
     codingRepUser = await prisma.user.findUniqueOrThrow({ where: { email: 'rep.coding@acm-demo.college.edu' } })
+    roboticsRepUser = await prisma.user.findUniqueOrThrow({ where: { email: 'rep.robotics@acm-demo.college.edu' } })
     acmCoreUser = await prisma.user.findUniqueOrThrow({ where: { email: 'core@acm-demo.college.edu' } })
     viewerUser = await prisma.user.findUniqueOrThrow({ where: { email: 'viewer@acm-demo.college.edu' } })
 
@@ -264,6 +266,165 @@ describe('Events & Calendar API Route Handlers (Integration)', () => {
       expect(cancelRes.status).toBe(200)
       const cancelJson = await cancelRes.json()
       expect(cancelJson.data.status).toBe('CANCELLED')
+    })
+  })
+
+  describe('Creator-Only Editing & Anti-Spoofing (Zero-Trust)', () => {
+    let testDraftEventId: string
+
+    beforeAll(async () => {
+      // Create a draft owned by codingRepUser
+      currentUserMock = {
+        id: codingRepUser.id,
+        email: codingRepUser.email,
+        name: codingRepUser.name,
+        role: codingRepUser.role,
+        clubId: codingRepUser.clubId,
+      }
+
+      const req = new NextRequest('http://localhost:3000/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Ownership Route Test Event',
+          eventType: EventType.WORKSHOP,
+          clubId: codingClub.id,
+          venueId: venue.id,
+          semesterId: semester.id,
+          startAt: '2026-11-28T10:00:00.000Z',
+          endAt: '2026-11-28T12:00:00.000Z',
+        }),
+      })
+      const res = await createEventHandler(req)
+      const data = await res.json()
+      testDraftEventId = data.data.id
+    })
+
+    it('creator can edit ordinary editable fields on their draft', async () => {
+      currentUserMock = {
+        id: codingRepUser.id,
+        email: codingRepUser.email,
+        name: codingRepUser.name,
+        role: codingRepUser.role,
+        clubId: codingRepUser.clubId,
+      }
+
+      const patchReq = new NextRequest(`http://localhost:3000/api/events/${testDraftEventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Updated Event Title by Creator',
+          description: 'Updated description',
+        }),
+      })
+
+      const patchRes = await updateEventHandler(patchReq, {
+        params: Promise.resolve({ id: testDraftEventId }),
+      })
+      expect(patchRes.status).toBe(200)
+      const json = await patchRes.json()
+      expect(json.success).toBe(true)
+      expect(json.data.title).toBe('Updated Event Title by Creator')
+    })
+
+    it('non-creator (another club rep) CANNOT edit the event (returns 403 Forbidden)', async () => {
+      currentUserMock = {
+        id: roboticsRepUser.id,
+        email: roboticsRepUser.email,
+        name: roboticsRepUser.name,
+        role: roboticsRepUser.role,
+        clubId: roboticsRepUser.clubId,
+      }
+
+      const patchReq = new NextRequest(`http://localhost:3000/api/events/${testDraftEventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Malicious Hijack Attempt',
+        }),
+      })
+
+      const patchRes = await updateEventHandler(patchReq, {
+        params: Promise.resolve({ id: testDraftEventId }),
+      })
+      expect(patchRes.status).toBe(403)
+      const json = await patchRes.json()
+      expect(json.success).toBe(false)
+      expect(json.error.code).toBe('FORBIDDEN')
+    })
+
+    it('admin cannot edit creator-owned fields via standard edit endpoint (returns 403 Forbidden)', async () => {
+      currentUserMock = {
+        id: acmCoreUser.id,
+        email: acmCoreUser.email,
+        name: acmCoreUser.name,
+        role: acmCoreUser.role,
+        clubId: acmCoreUser.clubId,
+      }
+
+      const patchReq = new NextRequest(`http://localhost:3000/api/events/${testDraftEventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Admin Overwrite Attempt',
+        }),
+      })
+
+      const patchRes = await updateEventHandler(patchReq, {
+        params: Promise.resolve({ id: testDraftEventId }),
+      })
+      expect(patchRes.status).toBe(403)
+      const json = await patchRes.json()
+      expect(json.success).toBe(false)
+      expect(json.error.code).toBe('FORBIDDEN')
+    })
+
+    it('rejects payload attempting to spoof submittedByUserId or clubId (returns 403 Forbidden)', async () => {
+      currentUserMock = {
+        id: codingRepUser.id,
+        email: codingRepUser.email,
+        name: codingRepUser.name,
+        role: codingRepUser.role,
+        clubId: codingRepUser.clubId,
+      }
+
+      const patchReq = new NextRequest(`http://localhost:3000/api/events/${testDraftEventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Spoofed Payload',
+          submittedByUserId: roboticsRepUser.id,
+        }),
+      })
+
+      const patchRes = await updateEventHandler(patchReq, {
+        params: Promise.resolve({ id: testDraftEventId }),
+      })
+      expect(patchRes.status).toBe(403)
+      const json = await patchRes.json()
+      expect(json.success).toBe(false)
+      expect(json.error.code).toBe('FORBIDDEN')
+    })
+
+    it('non-creator CANNOT submit draft for review (returns 403 Forbidden)', async () => {
+      currentUserMock = {
+        id: roboticsRepUser.id,
+        email: roboticsRepUser.email,
+        name: roboticsRepUser.name,
+        role: roboticsRepUser.role,
+        clubId: roboticsRepUser.clubId,
+      }
+
+      const submitReq = new NextRequest(`http://localhost:3000/api/events/${testDraftEventId}/submit`, {
+        method: 'POST',
+      })
+      const submitRes = await submitEventHandler(submitReq, {
+        params: Promise.resolve({ id: testDraftEventId }),
+      })
+      expect(submitRes.status).toBe(403)
+      const json = await submitRes.json()
+      expect(json.success).toBe(false)
+      expect(json.error.code).toBe('FORBIDDEN')
     })
   })
 

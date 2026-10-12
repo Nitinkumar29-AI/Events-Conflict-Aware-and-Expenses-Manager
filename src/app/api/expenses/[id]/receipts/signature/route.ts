@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     
 
     const { id } = await params
-    const signatureData = receiptService.generateSignature(user, id)
+    const signatureData = await receiptService.generateSignature(user, id)
     return successResponse(signatureData)
   } catch (error) {
     return handleApiError(error)

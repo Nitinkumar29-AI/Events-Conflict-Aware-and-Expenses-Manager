@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { canClient, canManageClubResource, ROLE_PERMISSIONS } from '@/lib/auth-client'
+import {
+  canClient,
+  canManageClubResource,
+  isRecordCreator,
+  canEditEventClient,
+  canEditExpenseClient,
+  ROLE_PERMISSIONS,
+} from '@/lib/auth-client'
 
 describe('Frontend RBAC Client Permissions (canClient) Unit Tests', () => {
   it('SUPER_ADMIN possesses full permission set', () => {
@@ -59,5 +66,43 @@ describe('Frontend Resource Ownership (canManageClubResource) Unit Tests', () =>
 
   it('VIEWER cannot manage resources even if clubId is somehow present', () => {
     expect(canManageClubResource('VIEWER', 'coding-club', 'coding-club')).toBe(false)
+  })
+})
+
+describe('Frontend Creator-Only Client Helpers Unit Tests', () => {
+  const userId = 'user-rep-1'
+  const peerId = 'user-rep-2'
+  const clubId = 'club-coding'
+
+  const draftEvent = {
+    submittedByUserId: userId,
+    clubId,
+    status: 'DRAFT',
+  }
+
+  const draftExpense = {
+    createdByUserId: userId,
+    clubId,
+    status: 'DRAFT',
+  }
+
+  it('isRecordCreator matches exact user ID', () => {
+    expect(isRecordCreator(userId, userId)).toBe(true)
+    expect(isRecordCreator(userId, peerId)).toBe(false)
+    expect(isRecordCreator(null, userId)).toBe(false)
+  })
+
+  it('canEditEventClient allows creator with UPDATE_EVENT capability', () => {
+    expect(canEditEventClient(userId, 'CLUB_REP', clubId, draftEvent)).toBe(true)
+    // Peer in same club cannot edit
+    expect(canEditEventClient(peerId, 'CLUB_REP', clubId, draftEvent)).toBe(false)
+    // Non-creator admin cannot edit via creator form
+    expect(canEditEventClient('admin-id', 'SUPER_ADMIN', null, draftEvent)).toBe(false)
+  })
+
+  it('canEditExpenseClient allows creator with UPDATE_EXPENSE capability', () => {
+    expect(canEditExpenseClient(userId, 'CLUB_REP', clubId, draftExpense)).toBe(true)
+    // Peer in same club cannot edit
+    expect(canEditExpenseClient(peerId, 'CLUB_REP', clubId, draftExpense)).toBe(false)
   })
 })

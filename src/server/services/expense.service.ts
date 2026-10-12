@@ -1,4 +1,4 @@
-import { ExpenseStatus, AuditAction, Prisma } from '@prisma/client'
+import { ExpenseStatus, AuditAction, Prisma, UserRole } from '@prisma/client'
 import prisma from '@/server/lib/prisma'
 import { notificationService } from './notification.service'
 import { SessionUser } from '@/server/types'
@@ -103,6 +103,12 @@ export class ExpenseService {
     })
 
     if (!expense) throw new NotFoundError('Expense', expenseId)
+
+    // Zero-trust creator check: Only the authenticated creator may edit ordinary fields
+    if (expense.createdByUserId !== user.id) {
+      throw new ForbiddenError('Forbidden: Only the expense creator can edit this expense.')
+    }
+
     if (!canManageExpense(user, expense)) {
       throw new ForbiddenError(`Cannot update expense for club '${expense.clubId}'`)
     }
@@ -111,17 +117,15 @@ export class ExpenseService {
       throw new SemesterLockedError(expense.semester.name)
     }
 
-    if (expense.status !== ExpenseStatus.SUBMITTED) {
-      throw new BusinessRuleError(`Cannot update expense in status '${expense.status}'. Only DRAFT expenses can be edited.`)
+    if (expense.status !== ExpenseStatus.DRAFT && expense.status !== ExpenseStatus.REJECTED) {
+      throw new BusinessRuleError(`Cannot update expense in status '${expense.status}'. Only DRAFT or REJECTED expenses can be edited.`)
     }
 
-    let newClubId = expense.clubId
     if (data.eventId) {
       const event = await prisma.event.findFirst({ where: { id: data.eventId, deletedAt: null } })
       if (!event) throw new NotFoundError('Event', data.eventId)
-      newClubId = event.clubId
-      if (newClubId !== expense.clubId) {
-         assertCanAccessClub(user, newClubId, 'Cannot change expense to an event belonging to a different club.')
+      if (event.clubId !== expense.clubId) {
+        throw new BusinessRuleError('Cannot attach expense to an event belonging to a different club.')
       }
     }
 
@@ -147,7 +151,7 @@ export class ExpenseService {
           amount: data.amount ? new Prisma.Decimal(data.amount) : undefined,
           date: data.date ? new Date(data.date) : undefined,
           categoryId: data.categoryId,
-          clubId: newClubId,
+          clubId: expense.clubId,
           eventId: data.eventId === '' ? null : data.eventId, // empty string allows unsetting event
           semesterId: newSemesterId,
         },
@@ -193,6 +197,12 @@ export class ExpenseService {
     })
 
     if (!expense) throw new NotFoundError('Expense', expenseId)
+
+    // Zero-trust creator check: Only the authenticated creator may submit the expense
+    if (expense.createdByUserId !== user.id) {
+      throw new ForbiddenError('Forbidden: Only the expense creator can submit this expense.')
+    }
+
     if (!canManageExpense(user, expense)) {
       throw new ForbiddenError(`Cannot submit expense for club '${expense.clubId}'`)
     }
@@ -349,6 +359,14 @@ export class ExpenseService {
     })
 
     if (!expense) throw new NotFoundError('Expense', expenseId)
+
+    // Ownership check: Creator or institutional administration (ACM_CORE/SUPER_ADMIN)
+    const isCreator = expense.createdByUserId === user.id
+    const isCoreOrAdmin = user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ACM_CORE
+    if (!isCreator && !isCoreOrAdmin) {
+      throw new ForbiddenError('Forbidden: Only the expense creator or an administrator can delete this expense.')
+    }
+
     if (!canManageExpense(user, expense)) {
       throw new ForbiddenError(`Cannot delete expense for club '${expense.clubId}'`)
     }

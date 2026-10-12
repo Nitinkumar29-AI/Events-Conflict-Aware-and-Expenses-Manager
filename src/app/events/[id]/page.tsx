@@ -317,13 +317,17 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     }
   }
 
-  // RBAC permissions evaluation
-  const isOwner = canManageClubResource(user?.role, user?.clubId, event.clubId)
-  const canSubmit = isOwner && event.status === 'DRAFT' && canClient(user?.role, 'SUBMIT_EVENT')
+  // Zero-trust creator & RBAC permissions evaluation
+  const isCreator = Boolean(user?.id && event.submittedBy?.id && user.id === event.submittedBy.id)
+
+  // Creator-only actions: Ordinary edits and draft submission
+  const canSubmit = isCreator && event.status === 'DRAFT' && canClient(user?.role, 'SUBMIT_EVENT')
   const canEdit =
-    isOwner &&
+    isCreator &&
     (event.status === 'DRAFT' || event.status === 'SUBMITTED') &&
     canClient(user?.role, 'UPDATE_EVENT')
+
+  // Administrative moderation actions: Preserved for authorized institutional authorities
   const canVerify = event.status === 'SUBMITTED' && canClient(user?.role, 'VERIFY_EVENT')
   const canReject = event.status === 'SUBMITTED' && canClient(user?.role, 'REJECT_EVENT')
   const canCancel =
@@ -593,6 +597,12 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             </h3>
 
             <div className="space-y-3 text-xs">
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Submitted By:</span>
+                <span className="font-semibold text-slate-800">
+                  {event.submittedBy?.name || event.submittedBy?.email || 'Original Creator'}
+                </span>
+              </div>
               <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-400 font-medium">Assigned Venue:</span>
                 <span className="font-semibold text-slate-800">
