@@ -5,7 +5,17 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { fetchApi, ApiError } from '@/lib/api'
 import { AlertBanner, LoadingSpinner } from '@/components/ui/Feedback'
-import { Calendar, Users, Building, MapPin, Tag, Check, AlertCircle } from 'lucide-react'
+import {
+  Calendar,
+  Users,
+  Building,
+  MapPin,
+  Tag,
+  Check,
+  AlertCircle,
+  FileText,
+  Clock,
+} from 'lucide-react'
 
 const BRANCH_OPTIONS = ['CSE', 'IT', 'ECE', 'EE', 'MECH', 'CIVIL', 'AIDS', 'AIML']
 const YEAR_OPTIONS = [1, 2, 3, 4]
@@ -161,7 +171,6 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
       if (err instanceof ApiError) {
         setError(err.message)
         if (err.details && typeof err.details === 'object') {
-          // Format Zod field errors if present
           const formatted: Record<string, string> = {}
           for (const [k, v] of Object.entries(err.details as any)) {
             if (v && typeof v === 'object' && '_errors' in v && Array.isArray((v as any)._errors)) {
@@ -179,25 +188,29 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
   }
 
   if (loadingMeta) {
-    return <LoadingSpinner message="Loading form configuration..." />
+    return <LoadingSpinner message="Loading event metadata & venues..." />
   }
 
   const isRestrictedRep =
     user?.role === 'CLUB_REP' || (user?.role === 'ACM_EXEC' && !!user.clubId)
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 bg-white border border-zinc-200 rounded-lg p-6 shadow-sm">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-6 bg-white border border-slate-200 rounded-xl p-6 sm:p-8 shadow-xs"
+    >
       {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
 
+      {/* 1. Basic Details */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-indigo-600" />
-          Event Details
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b border-slate-100 pb-2 flex items-center gap-2">
+          <FileText className="w-4 h-4 text-indigo-600" />
+          Event Information
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
               Event Title *
             </label>
             <input
@@ -207,36 +220,36 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
               maxLength={200}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Annual Hackathon 2026"
-              className="w-full text-sm border border-zinc-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              placeholder="e.g. Annual Winter Hackathon 2026"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
             />
             {fieldErrors.title && (
-              <p className="text-xs text-red-600 mt-1">{fieldErrors.title}</p>
+              <p className="text-xs text-rose-600 mt-1 font-medium">{fieldErrors.title}</p>
             )}
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
-              Description
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+              Description / Agenda
             </label>
             <textarea
               rows={3}
               maxLength={2000}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of the event, agenda, or guidelines..."
-              className="w-full text-sm border border-zinc-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              placeholder="Provide a comprehensive summary of the event structure, speaker lineup, or requirements..."
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
-              Event Type *
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+              Event Category *
             </label>
             <select
               value={eventType}
               onChange={(e) => setEventType(e.target.value)}
-              className="w-full text-sm border border-zinc-300 rounded px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-slate-700"
             >
               {EVENT_TYPES.map((t) => (
                 <option key={t} value={t}>
@@ -248,14 +261,14 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
 
           {!isEdit && (
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Organizing Club *
               </label>
               <select
                 value={clubId}
                 disabled={isRestrictedRep}
                 onChange={(e) => setClubId(e.target.value)}
-                className="w-full text-sm border border-zinc-300 rounded px-3 py-2 bg-white disabled:bg-zinc-100 disabled:text-zinc-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white disabled:bg-slate-50 disabled:text-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-slate-700"
               >
                 {meta?.clubs.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -264,42 +277,42 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
                 ))}
               </select>
               {isRestrictedRep && (
-                <p className="text-[11px] text-zinc-500 mt-1">
-                  Bound to your authenticated club representative account.
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Fixed to your authenticated club representation scope.
                 </p>
               )}
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
-              Venue *
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+              Assigned Venue *
             </label>
             <select
               value={venueId}
               onChange={(e) => setVenueId(e.target.value)}
-              className="w-full text-sm border border-zinc-300 rounded px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-slate-700"
             >
               {meta?.venues.map((v) => (
                 <option key={v.id} value={v.id}>
-                  {v.name} (Cap: {v.capacity})
+                  {v.name} (Max Capacity: {v.capacity})
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
               Academic Semester *
             </label>
             <select
               value={semesterId}
               onChange={(e) => setSemesterId(e.target.value)}
-              className="w-full text-sm border border-zinc-300 rounded px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-slate-700"
             >
               {meta?.semesters.map((s) => (
                 <option key={s.id} value={s.id} disabled={s.isLocked}>
-                  {s.name} {s.isLocked ? '(LOCKED - Cannot submit events)' : ''}
+                  {s.name} {s.isLocked ? '(LOCKED)' : ''}
                 </option>
               ))}
             </select>
@@ -307,16 +320,16 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
         </div>
       </div>
 
-      {/* Date & Time */}
-      <div className="space-y-4 pt-4 border-t border-zinc-100">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-900 flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-indigo-600" />
-          Schedule Timing (Local / IST)
+      {/* 2. Schedule Timing */}
+      <div className="space-y-4 pt-4 border-t border-slate-100">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+          <Clock className="w-4 h-4 text-indigo-600" />
+          Schedule Timing (IST)
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
               Start Date & Time *
             </label>
             <input
@@ -324,15 +337,15 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
               required
               value={startAt}
               onChange={(e) => setStartAt(e.target.value)}
-              className="w-full text-sm border border-zinc-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
             {fieldErrors.startAt && (
-              <p className="text-xs text-red-600 mt-1">{fieldErrors.startAt}</p>
+              <p className="text-xs text-rose-600 mt-1 font-medium">{fieldErrors.startAt}</p>
             )}
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
               End Date & Time *
             </label>
             <input
@@ -340,30 +353,30 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
               required
               value={endAt}
               onChange={(e) => setEndAt(e.target.value)}
-              className="w-full text-sm border border-zinc-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
             {fieldErrors.endAt && (
-              <p className="text-xs text-red-600 mt-1">{fieldErrors.endAt}</p>
+              <p className="text-xs text-rose-600 mt-1 font-medium">{fieldErrors.endAt}</p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Structured Audience */}
-      <div className="space-y-4 pt-4 border-t border-zinc-100">
+      {/* 3. Target Audience Structure */}
+      <div className="space-y-4 pt-4 border-t border-slate-100">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-900 flex items-center gap-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
             <Users className="w-4 h-4 text-indigo-600" />
-            Target Audience (Wildcard Semantics)
+            Target Audience Scope
           </h3>
-          <span className="text-[11px] text-zinc-500 italic">
-            Empty selection = &quot;ALL&quot; wildcard
+          <span className="text-[11px] text-slate-400 font-medium">
+            Empty = Open to all campus cohorts
           </span>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-2">
-            Target Years (Leave empty for ALL Years)
+          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+            Academic Years
           </label>
           <div className="flex flex-wrap gap-2">
             {YEAR_OPTIONS.map((yr) => {
@@ -373,10 +386,10 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
                   type="button"
                   key={yr}
                   onClick={() => toggleYear(yr)}
-                  className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                     active
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100'
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                   }`}
                 >
                   Year {yr}
@@ -385,15 +398,15 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
             })}
             {targetYears.length === 0 && (
               <span className="text-xs text-indigo-600 font-medium self-center ml-2">
-                &rarr; Wildcard active: open to all years (1-4)
+                (Wildcard: All years 1–4 eligible)
               </span>
             )}
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-2">
-            Target Branches (Leave empty for ALL Branches)
+          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+            Target Branches
           </label>
           <div className="flex flex-wrap gap-2">
             {BRANCH_OPTIONS.map((br) => {
@@ -403,10 +416,10 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
                   type="button"
                   key={br}
                   onClick={() => toggleBranch(br)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium border transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                     active
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100'
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                   }`}
                 >
                   {br}
@@ -415,7 +428,7 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
             })}
             {targetBranches.length === 0 && (
               <span className="text-xs text-indigo-600 font-medium self-center ml-2">
-                &rarr; Wildcard active: open to all branches
+                (Wildcard: All branches eligible)
               </span>
             )}
           </div>
@@ -423,7 +436,7 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
           <div>
-            <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
               Expected Attendees
             </label>
             <input
@@ -431,37 +444,38 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
               min={0}
               value={expectedAttendees}
               onChange={(e) => setExpectedAttendees(Number(e.target.value))}
-              className="w-full text-sm border border-zinc-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
               Tags (Comma separated)
             </label>
             <input
               type="text"
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
-              placeholder="coding, tech, robotics"
-              className="w-full text-sm border border-zinc-300 rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              placeholder="e.g. coding, web3, ai"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             />
           </div>
         </div>
       </div>
 
-      <div className="pt-6 border-t border-zinc-200 flex justify-end gap-3">
+      {/* Form Action Controls */}
+      <div className="pt-6 border-t border-slate-100 flex justify-end gap-3">
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-4 py-2 border border-zinc-300 rounded text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+          className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={submitting}
-          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold shadow-sm disabled:opacity-50 transition-colors"
+          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors flex items-center gap-2"
         >
           {submitting ? 'Saving Event...' : isEdit ? 'Save Changes' : 'Create Event (Draft)'}
         </button>

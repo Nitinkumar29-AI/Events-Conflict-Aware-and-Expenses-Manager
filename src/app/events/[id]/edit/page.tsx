@@ -36,8 +36,10 @@ export default async function EditEventPage({
     <AppShell>
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
-          <h2 className="text-xl font-bold text-zinc-900 tracking-tight">Edit Event: {event.title}</h2>
-          <p className="text-xs text-zinc-500 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            Edit Event: {event.title}
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
             Update event parameters. Events can only be edited while in DRAFT or SUBMITTED status.
           </p>
         </div>

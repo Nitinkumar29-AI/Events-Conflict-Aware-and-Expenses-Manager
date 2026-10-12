@@ -1,89 +1,283 @@
 import React from 'react'
+import {
+  CheckCircle2,
+  Clock,
+  XCircle,
+  AlertTriangle,
+  Ban,
+  Check,
+  Shield,
+  ShieldAlert,
+  User,
+  Sparkles,
+} from 'lucide-react'
 
 export function EventStatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    DRAFT: 'bg-zinc-100 text-zinc-700 border-zinc-300',
-    SUBMITTED: 'bg-amber-50 text-amber-700 border-amber-300',
-    VERIFIED: 'bg-emerald-50 text-emerald-700 border-emerald-300',
-    REJECTED: 'bg-red-50 text-red-700 border-red-300',
-    CANCELLED: 'bg-rose-50 text-rose-700 border-rose-300',
-    COMPLETED: 'bg-blue-50 text-blue-700 border-blue-300',
+  const config: Record<
+    string,
+    { label: string; bg: string; text: string; border: string; icon: React.ReactNode }
+  > = {
+    DRAFT: {
+      label: 'Draft',
+      bg: 'bg-slate-50',
+      text: 'text-slate-700',
+      border: 'border-slate-200',
+      icon: <Clock className="w-3 h-3 text-slate-500 mr-1" />,
+    },
+    SUBMITTED: {
+      label: 'Submitted',
+      bg: 'bg-amber-50',
+      text: 'text-amber-800',
+      border: 'border-amber-200',
+      icon: <Clock className="w-3 h-3 text-amber-600 mr-1" />,
+    },
+    VERIFIED: {
+      label: 'Verified',
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-800',
+      border: 'border-emerald-200',
+      icon: <CheckCircle2 className="w-3 h-3 text-emerald-600 mr-1" />,
+    },
+    REJECTED: {
+      label: 'Rejected',
+      bg: 'bg-rose-50',
+      text: 'text-rose-800',
+      border: 'border-rose-200',
+      icon: <XCircle className="w-3 h-3 text-rose-600 mr-1" />,
+    },
+    CANCELLED: {
+      label: 'Cancelled',
+      bg: 'bg-slate-100',
+      text: 'text-slate-600',
+      border: 'border-slate-200',
+      icon: <Ban className="w-3 h-3 text-slate-500 mr-1" />,
+    },
+    COMPLETED: {
+      label: 'Completed',
+      bg: 'bg-blue-50',
+      text: 'text-blue-800',
+      border: 'border-blue-200',
+      icon: <Check className="w-3 h-3 text-blue-600 mr-1" />,
+    },
   }
 
-  const badgeStyle = styles[status] || 'bg-zinc-100 text-zinc-700 border-zinc-200'
+  const current = config[status] || {
+    label: status,
+    bg: 'bg-slate-50',
+    text: 'text-slate-700',
+    border: 'border-slate-200',
+    icon: null,
+  }
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${badgeStyle}`}>
-      {status}
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${current.bg} ${current.text} ${current.border}`}
+    >
+      {current.icon}
+      {current.label}
     </span>
   )
 }
 
 export function ExpenseStatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    DRAFT: 'bg-zinc-100 text-zinc-700 border-zinc-300',
-    SUBMITTED: 'bg-amber-50 text-amber-700 border-amber-300',
-    APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-300',
-    REJECTED: 'bg-red-50 text-red-700 border-red-300',
-    REIMBURSED: 'bg-purple-50 text-purple-700 border-purple-300',
+  const config: Record<
+    string,
+    { label: string; bg: string; text: string; border: string; icon: React.ReactNode }
+  > = {
+    DRAFT: {
+      label: 'Draft',
+      bg: 'bg-slate-50',
+      text: 'text-slate-700',
+      border: 'border-slate-200',
+      icon: <Clock className="w-3 h-3 text-slate-500 mr-1" />,
+    },
+    SUBMITTED: {
+      label: 'Submitted',
+      bg: 'bg-amber-50',
+      text: 'text-amber-800',
+      border: 'border-amber-200',
+      icon: <Clock className="w-3 h-3 text-amber-600 mr-1" />,
+    },
+    APPROVED: {
+      label: 'Approved',
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-800',
+      border: 'border-emerald-200',
+      icon: <CheckCircle2 className="w-3 h-3 text-emerald-600 mr-1" />,
+    },
+    REJECTED: {
+      label: 'Rejected',
+      bg: 'bg-rose-50',
+      text: 'text-rose-800',
+      border: 'border-rose-200',
+      icon: <XCircle className="w-3 h-3 text-rose-600 mr-1" />,
+    },
+    REIMBURSED: {
+      label: 'Reimbursed',
+      bg: 'bg-purple-50',
+      text: 'text-purple-800',
+      border: 'border-purple-200',
+      icon: <Sparkles className="w-3 h-3 text-purple-600 mr-1" />,
+    },
   }
 
-  const badgeStyle = styles[status] || 'bg-zinc-100 text-zinc-700 border-zinc-200'
+  const current = config[status] || {
+    label: status,
+    bg: 'bg-slate-50',
+    text: 'text-slate-700',
+    border: 'border-slate-200',
+    icon: null,
+  }
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${badgeStyle}`}>
-      {status}
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${current.bg} ${current.text} ${current.border}`}
+    >
+      {current.icon}
+      {current.label}
     </span>
   )
 }
 
 export function ConflictSeverityBadge({ severity }: { severity: string }) {
-  const styles: Record<string, string> = {
-    HIGH: 'bg-red-100 text-red-800 border-red-300 font-bold',
-    MEDIUM: 'bg-amber-100 text-amber-800 border-amber-300 font-semibold',
-    LOW: 'bg-sky-100 text-sky-800 border-sky-300 font-medium',
+  const config: Record<
+    string,
+    { label: string; bg: string; text: string; border: string; icon: React.ReactNode }
+  > = {
+    HIGH: {
+      label: 'High Severity',
+      bg: 'bg-rose-50',
+      text: 'text-rose-800',
+      border: 'border-rose-200 font-semibold',
+      icon: <AlertTriangle className="w-3 h-3 text-rose-600 mr-1" />,
+    },
+    MEDIUM: {
+      label: 'Medium Severity',
+      bg: 'bg-amber-50',
+      text: 'text-amber-800',
+      border: 'border-amber-200 font-medium',
+      icon: <AlertTriangle className="w-3 h-3 text-amber-600 mr-1" />,
+    },
+    LOW: {
+      label: 'Low Severity',
+      bg: 'bg-sky-50',
+      text: 'text-sky-800',
+      border: 'border-sky-200 font-medium',
+      icon: <AlertTriangle className="w-3 h-3 text-sky-600 mr-1" />,
+    },
   }
 
-  const badgeStyle = styles[severity] || 'bg-zinc-100 text-zinc-700 border-zinc-200'
+  const current = config[severity] || {
+    label: severity,
+    bg: 'bg-slate-50',
+    text: 'text-slate-700',
+    border: 'border-slate-200',
+    icon: null,
+  }
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs border ${badgeStyle}`}>
-      {severity}
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs border ${current.bg} ${current.text} ${current.border}`}
+    >
+      {current.icon}
+      {current.label}
     </span>
   )
 }
 
 export function ConflictStatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    OPEN: 'bg-red-50 text-red-700 border-red-300',
-    ACKNOWLEDGED: 'bg-amber-50 text-amber-700 border-amber-300',
-    RESOLVED: 'bg-emerald-50 text-emerald-700 border-emerald-300',
-    OVERRIDDEN: 'bg-purple-50 text-purple-700 border-purple-300',
+  const config: Record<
+    string,
+    { label: string; bg: string; text: string; border: string }
+  > = {
+    OPEN: {
+      label: 'Open Conflict',
+      bg: 'bg-rose-50',
+      text: 'text-rose-800',
+      border: 'border-rose-200',
+    },
+    ACKNOWLEDGED: {
+      label: 'Acknowledged',
+      bg: 'bg-amber-50',
+      text: 'text-amber-800',
+      border: 'border-amber-200',
+    },
+    RESOLVED: {
+      label: 'Resolved',
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-800',
+      border: 'border-emerald-200',
+    },
+    OVERRIDDEN: {
+      label: 'Overridden',
+      bg: 'bg-purple-50',
+      text: 'text-purple-800',
+      border: 'border-purple-200',
+    },
   }
 
-  const badgeStyle = styles[status] || 'bg-zinc-100 text-zinc-700 border-zinc-200'
+  const current = config[status] || {
+    label: status,
+    bg: 'bg-slate-50',
+    text: 'text-slate-700',
+    border: 'border-slate-200',
+  }
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${badgeStyle}`}>
-      {status}
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${current.bg} ${current.text} ${current.border}`}
+    >
+      {current.label}
     </span>
   )
 }
 
 export function RoleBadge({ role }: { role: string }) {
-  const styles: Record<string, string> = {
-    SUPER_ADMIN: 'bg-red-600 text-white font-bold',
-    ACM_CORE: 'bg-indigo-600 text-white font-semibold',
-    ACM_EXEC: 'bg-blue-600 text-white font-medium',
-    CLUB_REP: 'bg-emerald-600 text-white font-medium',
-    VIEWER: 'bg-zinc-600 text-white font-medium',
+  const config: Record<string, { label: string; bg: string; text: string; border: string }> = {
+    SUPER_ADMIN: {
+      label: 'Super Admin',
+      bg: 'bg-rose-50',
+      text: 'text-rose-700 font-semibold',
+      border: 'border-rose-200',
+    },
+    ACM_CORE: {
+      label: 'ACM Core',
+      bg: 'bg-indigo-50',
+      text: 'text-indigo-700 font-semibold',
+      border: 'border-indigo-200',
+    },
+    ACM_EXEC: {
+      label: 'ACM Exec',
+      bg: 'bg-blue-50',
+      text: 'text-blue-700 font-medium',
+      border: 'border-blue-200',
+    },
+    CLUB_REP: {
+      label: 'Club Rep',
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-700 font-medium',
+      border: 'border-emerald-200',
+    },
+    VIEWER: {
+      label: 'Viewer',
+      bg: 'bg-slate-100',
+      text: 'text-slate-600 font-medium',
+      border: 'border-slate-200',
+    },
   }
 
-  const badgeStyle = styles[role] || 'bg-zinc-500 text-white'
+  const current = config[role] || {
+    label: role,
+    bg: 'bg-slate-100',
+    text: 'text-slate-700 font-medium',
+    border: 'border-slate-200',
+  }
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs tracking-wide uppercase ${badgeStyle}`}>
-      {role}
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] border tracking-wide uppercase ${current.bg} ${current.text} ${current.border}`}
+    >
+      {current.label}
     </span>
   )
 }

@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { AppShell } from '@/components/layout/AppShell'
 import { fetchApi } from '@/lib/api'
+import { LoadingSpinner, EmptyState, AlertBanner } from '@/components/ui/Feedback'
 import {
   BarChart3,
   Calendar,
@@ -14,6 +16,10 @@ import {
   AlertCircle,
   CheckCircle,
   FileSpreadsheet,
+  Building,
+  Users,
+  ShieldAlert,
+  Wallet,
 } from 'lucide-react'
 
 export default function ReportsPage() {
@@ -53,7 +59,7 @@ export default function ReportsPage() {
         }
       })
       .catch(() => {
-        // Fallback: load semesters from /api/calendar or leave empty
+        // Fallback: leave empty
       })
   }, [session])
 
@@ -127,392 +133,509 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-indigo-400" />
-            Institutional Reports & Analytics
-          </h1>
-          <p className="text-zinc-400 text-sm mt-1">
-            Authoritative institutional outcomes, conflict patterns, and financial audits.
-          </p>
-        </div>
-
-        {/* Global Export Buttons */}
-        <div className="flex items-center gap-2">
-          <button
-            disabled={exporting}
-            onClick={() => handleExportCsv(activeTab === 'trends' ? 'events' : (activeTab as any))}
-            className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            {exporting ? 'Exporting...' : `Export ${activeTab.toUpperCase()} CSV`}
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs & Semester Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800 gap-4">
-        <div className="flex gap-4">
-          <button
-            onClick={() => setActiveTab('events')}
-            className={`pb-3 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors ${
-              activeTab === 'events'
-                ? 'border-indigo-500 text-indigo-400'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            Events Report
-          </button>
-          <button
-            onClick={() => setActiveTab('conflicts')}
-            className={`pb-3 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors ${
-              activeTab === 'conflicts'
-                ? 'border-indigo-500 text-indigo-400'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <AlertTriangle className="w-4 h-4" />
-            Conflict Report
-          </button>
-          <button
-            onClick={() => setActiveTab('financial')}
-            className={`pb-3 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors ${
-              activeTab === 'financial'
-                ? 'border-indigo-500 text-indigo-400'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Receipt className="w-4 h-4" />
-            Financial Report
-          </button>
-          <button
-            onClick={() => setActiveTab('trends')}
-            className={`pb-3 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors ${
-              activeTab === 'trends'
-                ? 'border-indigo-500 text-indigo-400'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <TrendingUp className="w-4 h-4" />
-            Monthly Trends
-          </button>
-        </div>
-
-        {activeTab !== 'trends' && semesters.length > 0 && (
-          <div className="pb-2">
-            <select
-              value={selectedSemesterId}
-              onChange={(e) => setSelectedSemesterId(e.target.value)}
-              className="bg-zinc-800 border border-zinc-700 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
-            >
-              <option value="">All Semesters / Active</option>
-              {semesters.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} {s.isLocked ? '(Locked)' : ''}
-                </option>
-              ))}
-            </select>
+    <AppShell>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <BarChart3 className="w-6 h-6 text-indigo-600" />
+              Institutional Reports & Analytics
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Authoritative institutional outcomes, conflict patterns, financial audits, and multi-month trends.
+            </p>
           </div>
-        )}
-      </div>
 
-      {/* Error state */}
-      {error && (
-        <div className="p-4 rounded-lg bg-red-950/50 border border-red-800 text-red-200 text-sm flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-400" />
-          <span>{error}</span>
+          {/* Global Export Buttons */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={exporting}
+              onClick={() => handleExportCsv(activeTab === 'trends' ? 'events' : (activeTab as any))}
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors shadow-xs"
+            >
+              <Download className="w-4 h-4" />
+              <span>{exporting ? 'Exporting...' : `Export ${activeTab.toUpperCase()} CSV`}</span>
+            </button>
+          </div>
         </div>
-      )}
 
-      {loading ? (
-        <div className="p-12 text-center text-zinc-400">Computing authoritative report...</div>
-      ) : (
-        <>
-          {/* ================= EVENTS REPORT ================= */}
-          {activeTab === 'events' && eventReport && (
-            <div className="space-y-6">
-              {/* Stat Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">Total Events</div>
-                  <div className="text-2xl font-bold text-white mt-1">{eventReport.totalEvents}</div>
-                </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">Verified / Completed</div>
-                  <div className="text-2xl font-bold text-emerald-400 mt-1">
-                    {(eventReport.statusBreakdown?.VERIFIED || 0) + (eventReport.statusBreakdown?.COMPLETED || 0)}
-                  </div>
-                </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">Cancelled / Rejected</div>
-                  <div className="text-2xl font-bold text-red-400 mt-1">
-                    {(eventReport.statusBreakdown?.CANCELLED || 0) + (eventReport.statusBreakdown?.REJECTED || 0)}
-                  </div>
-                </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">Expected Attendees</div>
-                  <div className="text-2xl font-bold text-indigo-400 mt-1">
-                    {eventReport.attendance?.totalExpectedAttendees || 0}
-                  </div>
-                </div>
-              </div>
+        {/* Tabs & Semester Selector */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 gap-4">
+          <div className="flex gap-6">
+            <button
+              type="button"
+              onClick={() => setActiveTab('events')}
+              className={`pb-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+                activeTab === 'events'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              Events Report
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('conflicts')}
+              className={`pb-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+                activeTab === 'conflicts'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              Conflict Report
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('financial')}
+              className={`pb-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+                activeTab === 'financial'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Receipt className="w-4 h-4" />
+              Financial Report
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('trends')}
+              className={`pb-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+                activeTab === 'trends'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <TrendingUp className="w-4 h-4" />
+              Monthly Trends
+            </button>
+          </div>
 
-              {/* Status Breakdown & Category Breakdown */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 space-y-4">
-                  <h3 className="font-semibold text-white text-sm">Status Breakdown</h3>
-                  <div className="space-y-2">
-                    {Object.entries(eventReport.statusBreakdown || {}).map(([st, cnt]: any) => (
-                      <div key={st} className="flex justify-between items-center text-xs">
-                        <span className="text-zinc-400">{st}</span>
-                        <span className="font-mono font-medium text-white px-2 py-0.5 bg-zinc-800 rounded">
-                          {cnt}
-                        </span>
-                      </div>
-                    ))}
+          {activeTab !== 'trends' && semesters.length > 0 && (
+            <div className="pb-2">
+              <select
+                aria-label="Filter by Semester"
+                value={selectedSemesterId}
+                onChange={(e) => setSelectedSemesterId(e.target.value)}
+                className="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 shadow-2xs cursor-pointer font-medium"
+              >
+                <option value="">All Semesters / Active</option>
+                {semesters.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} {s.isLocked ? '(Locked)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
+
+        {loading ? (
+          <div className="py-20 flex justify-center">
+            <LoadingSpinner size="lg" message="Computing authoritative report aggregates..." />
+          </div>
+        ) : (
+          <>
+            {/* ================= EVENTS REPORT ================= */}
+            {activeTab === 'events' && eventReport && (
+              <div className="space-y-6">
+                {/* Stat Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Total Events
+                    </div>
+                    <div className="text-2xl font-bold text-slate-900 mt-2">
+                      {eventReport.totalEvents}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">Recorded submissions</div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Verified / Completed
+                    </div>
+                    <div className="text-2xl font-bold text-emerald-600 mt-2">
+                      {(eventReport.statusBreakdown?.VERIFIED || 0) +
+                        (eventReport.statusBreakdown?.COMPLETED || 0)}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">Confirmed delivery</div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Cancelled / Rejected
+                    </div>
+                    <div className="text-2xl font-bold text-rose-600 mt-2">
+                      {(eventReport.statusBreakdown?.CANCELLED || 0) +
+                        (eventReport.statusBreakdown?.REJECTED || 0)}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">Failed validation</div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Expected Attendees
+                    </div>
+                    <div className="text-2xl font-bold text-indigo-600 mt-2">
+                      {eventReport.attendance?.totalExpectedAttendees || 0}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">Projected total reach</div>
                   </div>
                 </div>
 
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 space-y-4">
-                  <h3 className="font-semibold text-white text-sm">Category / Event Type Breakdown</h3>
-                  <div className="space-y-2">
-                    {eventReport.categoryBreakdown?.map((cat: any) => (
-                      <div key={cat.eventType} className="flex justify-between items-center text-xs">
-                        <span className="text-zinc-400">{cat.eventType}</span>
-                        <span className="font-mono font-medium text-white px-2 py-0.5 bg-zinc-800 rounded">
-                          {cat.count}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Club Distribution Table */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 space-y-4">
-                <h3 className="font-semibold text-white text-sm">Distribution by Club</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-zinc-300">
-                    <thead className="bg-zinc-800/60 uppercase text-zinc-400 border-b border-zinc-800">
-                      <tr>
-                        <th className="py-2.5 px-4">Club Name</th>
-                        <th className="py-2.5 px-4">Code</th>
-                        <th className="py-2.5 px-4 text-right">Event Count</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-800">
-                      {eventReport.clubBreakdown?.map((c: any) => (
-                        <tr key={c.clubId}>
-                          <td className="py-2.5 px-4 text-white font-medium">{c.clubName}</td>
-                          <td className="py-2.5 px-4 text-zinc-400">{c.clubCode}</td>
-                          <td className="py-2.5 px-4 text-right font-mono text-white">{c.count}</td>
-                        </tr>
+                {/* Status Breakdown & Category Breakdown */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+                    <h3 className="font-bold text-slate-900 text-sm">Status Breakdown</h3>
+                    <div className="space-y-2">
+                      {Object.entries(eventReport.statusBreakdown || {}).map(([st, cnt]: any) => (
+                        <div
+                          key={st}
+                          className="flex justify-between items-center text-xs p-2 rounded-lg bg-slate-50 border border-slate-100"
+                        >
+                          <span className="font-medium text-slate-700">{st}</span>
+                          <span className="font-semibold text-slate-900 tabular-nums">
+                            {cnt}
+                          </span>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+                    <h3 className="font-bold text-slate-900 text-sm">Event Type Distribution</h3>
+                    <div className="space-y-2">
+                      {eventReport.categoryBreakdown?.map((cat: any) => (
+                        <div
+                          key={cat.eventType}
+                          className="flex justify-between items-center text-xs p-2 rounded-lg bg-slate-50 border border-slate-100"
+                        >
+                          <span className="font-medium text-slate-700">{cat.eventType}</span>
+                          <span className="font-semibold text-slate-900 tabular-nums">
+                            {cat.count}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Club Distribution Table */}
+                <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100">
+                    <h3 className="font-bold text-slate-900 text-sm">Distribution by Club</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs text-slate-700 border-collapse">
+                      <thead className="bg-slate-50 border-b border-slate-200 uppercase text-[11px] font-semibold text-slate-500 tracking-wider">
+                        <tr>
+                          <th className="py-2.5 px-5">Club Name</th>
+                          <th className="py-2.5 px-5">Code</th>
+                          <th className="py-2.5 px-5 text-right">Event Count</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {eventReport.clubBreakdown?.map((c: any) => (
+                          <tr key={c.clubId} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-2.5 px-5 font-semibold text-slate-900">
+                              {c.clubName}
+                            </td>
+                            <td className="py-2.5 px-5 text-slate-500 font-mono text-[11px]">
+                              {c.clubCode}
+                            </td>
+                            <td className="py-2.5 px-5 text-right font-semibold text-slate-900 tabular-nums">
+                              {c.count}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* ================= CONFLICTS REPORT ================= */}
-          {activeTab === 'conflicts' && conflictReport && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">Total Logged Conflicts</div>
-                  <div className="text-2xl font-bold text-white mt-1">{conflictReport.totalConflicts}</div>
-                </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">High Severity</div>
-                  <div className="text-2xl font-bold text-red-400 mt-1">
-                    {conflictReport.severityBreakdown?.HIGH || 0}
+            {/* ================= CONFLICTS REPORT ================= */}
+            {activeTab === 'conflicts' && conflictReport && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Total Conflicts
+                    </div>
+                    <div className="text-2xl font-bold text-slate-900 mt-2">
+                      {conflictReport.totalConflicts}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">Detected clashes</div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      High Severity
+                    </div>
+                    <div className="text-2xl font-bold text-rose-600 mt-2">
+                      {conflictReport.severityBreakdown?.HIGH || 0}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">Blocking issues</div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Resolved / Overridden
+                    </div>
+                    <div className="text-2xl font-bold text-emerald-600 mt-2">
+                      {(conflictReport.statusBreakdown?.RESOLVED || 0) +
+                        (conflictReport.statusBreakdown?.OVERRIDDEN || 0)}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">Addressed by human core</div>
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Avg Conflict Score
+                    </div>
+                    <div className="text-2xl font-bold text-indigo-600 mt-2">
+                      {conflictReport.averageConflictScore ?? 'N/A'}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">Collision density metric</div>
                   </div>
                 </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">Resolved / Overridden</div>
-                  <div className="text-2xl font-bold text-emerald-400 mt-1">
-                    {(conflictReport.statusBreakdown?.RESOLVED || 0) + (conflictReport.statusBreakdown?.OVERRIDDEN || 0)}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-3">
+                    <h3 className="font-bold text-slate-900 text-sm">Conflict Types</h3>
+                    {Object.entries(conflictReport.typeBreakdown || {}).map(([tp, cnt]: any) => (
+                      <div
+                        key={tp}
+                        className="flex justify-between items-center text-xs p-2 rounded-lg bg-slate-50 border border-slate-100"
+                      >
+                        <span className="font-medium text-slate-700">{tp}</span>
+                        <span className="font-semibold text-slate-900 tabular-nums">{cnt}</span>
+                      </div>
+                    ))}
                   </div>
-                </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">Avg Conflict Score</div>
-                  <div className="text-2xl font-bold text-indigo-400 mt-1">
-                    {conflictReport.averageConflictScore ?? 'N/A'}
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-3">
+                    <h3 className="font-bold text-slate-900 text-sm">Severity Breakdown</h3>
+                    {Object.entries(conflictReport.severityBreakdown || {}).map(
+                      ([sev, cnt]: any) => (
+                        <div
+                          key={sev}
+                          className="flex justify-between items-center text-xs p-2 rounded-lg bg-slate-50 border border-slate-100"
+                        >
+                          <span className="font-medium text-slate-700">{sev}</span>
+                          <span className="font-semibold text-slate-900 tabular-nums">{cnt}</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-3">
+                    <h3 className="font-bold text-slate-900 text-sm">Resolution Status</h3>
+                    {Object.entries(conflictReport.statusBreakdown || {}).map(([st, cnt]: any) => (
+                      <div
+                        key={st}
+                        className="flex justify-between items-center text-xs p-2 rounded-lg bg-slate-50 border border-slate-100"
+                      >
+                        <span className="font-medium text-slate-700">{st}</span>
+                        <span className="font-semibold text-slate-900 tabular-nums">{cnt}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
+            )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 space-y-3">
-                  <h3 className="font-semibold text-white text-sm">Conflict Types</h3>
-                  {Object.entries(conflictReport.typeBreakdown || {}).map(([tp, cnt]: any) => (
-                    <div key={tp} className="flex justify-between items-center text-xs">
-                      <span className="text-zinc-400">{tp}</span>
-                      <span className="font-mono text-white px-2 py-0.5 bg-zinc-800 rounded">{cnt}</span>
+            {/* ================= FINANCIAL REPORT ================= */}
+            {activeTab === 'financial' && financialReport && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Total Envelope
                     </div>
-                  ))}
-                </div>
-
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 space-y-3">
-                  <h3 className="font-semibold text-white text-sm">Severity Breakdown</h3>
-                  {Object.entries(conflictReport.severityBreakdown || {}).map(([sev, cnt]: any) => (
-                    <div key={sev} className="flex justify-between items-center text-xs">
-                      <span className="text-zinc-400">{sev}</span>
-                      <span className="font-mono text-white px-2 py-0.5 bg-zinc-800 rounded">{cnt}</span>
+                    <div className="text-xl font-bold text-slate-900 mt-2 tabular-nums">
+                      {financialReport.totalBudget !== null
+                        ? `₹${financialReport.totalBudget}`
+                        : 'N/A (Institutional)'}
                     </div>
-                  ))}
-                </div>
+                  </div>
 
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 space-y-3">
-                  <h3 className="font-semibold text-white text-sm">Resolution Status</h3>
-                  {Object.entries(conflictReport.statusBreakdown || {}).map(([st, cnt]: any) => (
-                    <div key={st} className="flex justify-between items-center text-xs">
-                      <span className="text-zinc-400">{st}</span>
-                      <span className="font-mono text-white px-2 py-0.5 bg-zinc-800 rounded">{cnt}</span>
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Total Allocated
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+                    <div className="text-xl font-bold text-indigo-600 mt-2 tabular-nums">
+                      ₹{financialReport.totalAllocated}
+                    </div>
+                  </div>
 
-          {/* ================= FINANCIAL REPORT ================= */}
-          {activeTab === 'financial' && financialReport && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">Total Semester Budget</div>
-                  <div className="text-xl font-bold text-white mt-1 font-mono">
-                    {financialReport.totalBudget !== null ? `₹${financialReport.totalBudget}` : 'N/A (Institutional)'}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Unallocated
+                    </div>
+                    <div className="text-xl font-bold text-slate-700 mt-2 tabular-nums">
+                      {financialReport.unallocatedBudget !== null
+                        ? `₹${financialReport.unallocatedBudget}`
+                        : 'N/A (Institutional)'}
+                    </div>
                   </div>
-                </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">Total Allocated</div>
-                  <div className="text-xl font-bold text-indigo-400 mt-1 font-mono">
-                    ₹{financialReport.totalAllocated}
+
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      Approved Spent
+                    </div>
+                    <div className="text-xl font-bold text-slate-900 mt-2 tabular-nums">
+                      ₹{financialReport.totalSpent}
+                    </div>
                   </div>
-                </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">Unallocated Budget</div>
-                  <div className="text-xl font-bold text-zinc-300 mt-1 font-mono">
-                    {financialReport.unallocatedBudget !== null ? `₹${financialReport.unallocatedBudget}` : 'N/A (Institutional)'}
-                  </div>
-                </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">Approved Spending</div>
-                  <div className="text-xl font-bold text-amber-400 mt-1 font-mono">
-                    ₹{financialReport.totalSpent}
-                  </div>
-                </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                  <div className="text-xs text-zinc-400">Remaining Budget</div>
+
                   <div
-                    className={`text-xl font-bold mt-1 font-mono ${
-                      financialReport.semesterOverspent ? 'text-red-400' : 'text-emerald-400'
+                    className={`border rounded-xl p-5 shadow-2xs ${
+                      financialReport.semesterOverspent
+                        ? 'bg-rose-50/50 border-rose-200'
+                        : 'bg-white border-slate-200'
                     }`}
                   >
-                    ₹{financialReport.remainingBudget}
+                    <div className="text-[11px] font-semibold uppercase tracking-wider">
+                      <span
+                        className={
+                          financialReport.semesterOverspent ? 'text-rose-700' : 'text-slate-500'
+                        }
+                      >
+                        Remaining
+                      </span>
+                    </div>
+                    <div
+                      className={`text-xl font-bold mt-2 tabular-nums ${
+                        financialReport.semesterOverspent ? 'text-rose-700' : 'text-emerald-600'
+                      }`}
+                    >
+                      ₹{financialReport.remainingBudget}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Category Breakdown Table */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 space-y-4">
-                <h3 className="font-semibold text-white text-sm">Category Budget Utilization</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-zinc-300">
-                    <thead className="bg-zinc-800/60 uppercase text-zinc-400 border-b border-zinc-800">
-                      <tr>
-                        <th className="py-2.5 px-4">Category</th>
-                        <th className="py-2.5 px-4">Club Scope</th>
-                        <th className="py-2.5 px-4 text-right">Allocated</th>
-                        <th className="py-2.5 px-4 text-right">Approved Spent</th>
-                        <th className="py-2.5 px-4 text-right">Remaining</th>
-                        <th className="py-2.5 px-4 text-right">Utilization</th>
-                        <th className="py-2.5 px-4 text-center">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-800">
-                      {financialReport.categoryBreakdown?.map((cat: any) => (
-                        <tr key={cat.id}>
-                          <td className="py-2.5 px-4 text-white font-medium">{cat.categoryName}</td>
-                          <td className="py-2.5 px-4 text-zinc-400">
-                            {cat.clubName || 'Institutional'}
-                          </td>
-                          <td className="py-2.5 px-4 text-right font-mono text-zinc-300">
-                            ₹{cat.allocatedAmount}
-                          </td>
-                          <td className="py-2.5 px-4 text-right font-mono text-amber-400">
-                            ₹{cat.spentAmount}
-                          </td>
-                          <td
-                            className={`py-2.5 px-4 text-right font-mono ${
-                              cat.overspent ? 'text-red-400 font-bold' : 'text-emerald-400'
-                            }`}
-                          >
-                            ₹{cat.remainingAmount}
-                          </td>
-                          <td className="py-2.5 px-4 text-right font-mono text-zinc-300">
-                            {cat.utilizationPercentage !== null && cat.utilizationPercentage !== undefined
-                              ? `${cat.utilizationPercentage}%`
-                              : 'N/A'}
-                          </td>
-                          <td className="py-2.5 px-4 text-center">
-                            {cat.isUnallocated ? (
-                              <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800 text-[10px]">
-                                UNALLOCATED
-                              </span>
-                            ) : cat.overspent ? (
-                              <span className="px-2 py-0.5 rounded bg-red-950 text-red-400 border border-red-800 text-[10px]">
-                                OVERSPENT
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px]">
-                                ON TRACK
-                              </span>
-                            )}
-                          </td>
+                {/* Category Breakdown Table */}
+                <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100">
+                    <h3 className="font-bold text-slate-900 text-sm">
+                      Category Budget Utilization
+                    </h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs text-slate-700 border-collapse">
+                      <thead className="bg-slate-50 border-b border-slate-200 uppercase text-[11px] font-semibold text-slate-500 tracking-wider">
+                        <tr>
+                          <th className="py-2.5 px-5">Category</th>
+                          <th className="py-2.5 px-5">Club Scope</th>
+                          <th className="py-2.5 px-5 text-right">Allocated</th>
+                          <th className="py-2.5 px-5 text-right">Approved Spent</th>
+                          <th className="py-2.5 px-5 text-right">Remaining</th>
+                          <th className="py-2.5 px-5 text-right">Utilization</th>
+                          <th className="py-2.5 px-5 text-center">Status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {financialReport.categoryBreakdown?.map((cat: any) => (
+                          <tr key={cat.id} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-2.5 px-5 font-semibold text-slate-900">
+                              {cat.categoryName}
+                            </td>
+                            <td className="py-2.5 px-5 text-slate-500">
+                              {cat.clubName || 'Institutional'}
+                            </td>
+                            <td className="py-2.5 px-5 text-right font-medium text-slate-800 tabular-nums">
+                              ₹{cat.allocatedAmount}
+                            </td>
+                            <td className="py-2.5 px-5 text-right font-medium text-slate-800 tabular-nums">
+                              ₹{cat.spentAmount}
+                            </td>
+                            <td
+                              className={`py-2.5 px-5 text-right font-semibold tabular-nums ${
+                                cat.overspent ? 'text-rose-600' : 'text-slate-900'
+                              }`}
+                            >
+                              ₹{cat.remainingAmount}
+                            </td>
+                            <td className="py-2.5 px-5 text-right tabular-nums text-slate-600">
+                              {cat.utilizationPercentage !== null &&
+                              cat.utilizationPercentage !== undefined
+                                ? `${cat.utilizationPercentage}%`
+                                : 'N/A'}
+                            </td>
+                            <td className="py-2.5 px-5 text-center">
+                              {cat.isUnallocated ? (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-semibold">
+                                  UNALLOCATED
+                                </span>
+                              ) : cat.overspent ? (
+                                <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-semibold">
+                                  OVERSPENT
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">
+                                  ON TRACK
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* ================= TRENDS REPORT ================= */}
-          {activeTab === 'trends' && trendReport && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-6">
-              <h3 className="font-semibold text-white text-base">Past 6 Months Activity Trends</h3>
+            {/* ================= TRENDS REPORT ================= */}
+            {activeTab === 'trends' && trendReport && (
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-6">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Past 6 Months Activity Trends</h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Multi-month timeline tracking volume of events, detected conflicts, and verified expenditure.
+                  </p>
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {trendReport.trends?.map((t: any) => (
-                  <div key={t.month} className="p-4 bg-zinc-800/40 border border-zinc-700/60 rounded-lg space-y-2">
-                    <div className="text-sm font-bold text-white border-b border-zinc-700/60 pb-1.5 flex justify-between">
-                      <span>{t.month}</span>
-                      <span className="text-xs text-indigo-400 font-mono">₹{t.approvedSpending} spent</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {trendReport.trends?.map((t: any) => (
+                    <div
+                      key={t.month}
+                      className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-xl space-y-3"
+                    >
+                      <div className="text-sm font-bold text-slate-900 border-b border-slate-200 pb-2 flex justify-between items-center">
+                        <span>{t.month}</span>
+                        <span className="text-xs text-indigo-600 font-semibold tabular-nums">
+                          ₹{t.approvedSpending} spent
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-slate-600">
+                        <span>Events Hosted:</span>
+                        <span className="font-semibold text-slate-900 tabular-nums">
+                          {t.eventsCount}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-slate-600">
+                        <span>Conflicts Detected:</span>
+                        <span className="font-semibold text-amber-700 tabular-nums">
+                          {t.conflictsCount}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-xs text-zinc-400">
-                      <span>Events Hosted:</span>
-                      <span className="font-mono text-white font-medium">{t.eventsCount}</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-zinc-400">
-                      <span>Conflicts Detected:</span>
-                      <span className="font-mono text-amber-400 font-medium">{t.conflictsCount}</span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </>
-      )}
-    </div>
+            )}
+          </>
+        )}
+      </div>
+    </AppShell>
   )
 }

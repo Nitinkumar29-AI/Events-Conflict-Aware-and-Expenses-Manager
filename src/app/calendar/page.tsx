@@ -9,7 +9,7 @@ import interactionPlugin from '@fullcalendar/interaction'
 import { AppShell } from '@/components/layout/AppShell'
 import { AlertBanner, LoadingSpinner } from '@/components/ui/Feedback'
 import { fetchApi } from '@/lib/api'
-import { Calendar as CalendarIcon, Info } from 'lucide-react'
+import { Calendar as CalendarIcon, Info, Sparkles } from 'lucide-react'
 
 interface CalendarEventItem {
   id: string
@@ -49,7 +49,7 @@ export default function CalendarPage() {
         `/api/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
       )
 
-      // Map to FullCalendar event format with color coding
+      // Map to FullCalendar event format with harmonious pastel/accent color coding
       const mapped = (res.data || []).map((ev) => {
         let backgroundColor = '#4f46e5' // Indigo for verified/default
         let borderColor = '#4338ca'
@@ -58,11 +58,11 @@ export default function CalendarPage() {
           backgroundColor = '#d97706' // Amber
           borderColor = '#b45309'
         } else if (ev.extendedProps?.status === 'DRAFT') {
-          backgroundColor = '#6b7280' // Gray
-          borderColor = '#4b5563'
+          backgroundColor = '#64748b' // Slate
+          borderColor = '#475569'
         } else if (ev.extendedProps?.status === 'COMPLETED') {
-          backgroundColor = '#2563eb' // Blue
-          borderColor = '#1d4ed8'
+          backgroundColor = '#0284c7' // Sky
+          borderColor = '#0369a1'
         }
 
         return {
@@ -98,38 +98,45 @@ export default function CalendarPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-zinc-900 tracking-tight">Interactive Calendar</h2>
-              <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-mono border border-indigo-200">
-                FullCalendar
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                Institutional Calendar
+              </h1>
+              <span className="text-[11px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold border border-indigo-200">
+                Live Scheduler
               </span>
             </div>
-            <p className="text-xs text-zinc-500 mt-1">
-              Visual scheduling matrix. Click any event to inspect its conflict scores and lifecycle.
+            <p className="text-xs text-slate-500 mt-1">
+              Visual scheduling matrix across all verified and pending club events. Click an event to inspect its details.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+          {/* Color Legend */}
+          <div className="flex flex-wrap items-center gap-3 text-xs bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-2xs">
+            <span className="flex items-center gap-1.5 font-medium text-slate-700">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
               <span>Verified</span>
             </span>
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 font-medium text-slate-700">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-600"></span>
               <span>Submitted</span>
             </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-zinc-500"></span>
+            <span className="flex items-center gap-1.5 font-medium text-slate-700">
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-500"></span>
               <span>Draft</span>
+            </span>
+            <span className="flex items-center gap-1.5 font-medium text-slate-700">
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-600"></span>
+              <span>Completed</span>
             </span>
           </div>
         </div>
 
         {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
 
-        <div className="bg-white p-5 rounded-lg border border-zinc-200 shadow-sm">
+        <div className="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-xs">
           {loading && (
-            <div className="mb-2 text-xs text-indigo-600 font-medium flex items-center gap-1.5">
-              <LoadingSpinner message="Refreshing calendar window..." />
+            <div className="mb-3 text-xs text-indigo-600 font-semibold flex items-center gap-2">
+              <LoadingSpinner size="sm" message="Updating schedule window..." />
             </div>
           )}
 
@@ -158,11 +165,10 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        <div className="p-3 bg-zinc-100 border border-zinc-200 rounded text-xs text-zinc-600 flex items-center gap-2">
-          <Info className="w-4 h-4 text-zinc-500 flex-shrink-0" />
+        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 flex items-center gap-2.5 shadow-2xs">
+          <Info className="w-4 h-4 text-slate-400 flex-shrink-0" />
           <span>
-            Calendar queries are bound by backend range limits (max 366 days). The calendar is purely
-            a visual tool and will never mutate event state automatically.
+            Calendar queries are securely restricted by backend window limits (max 366 days). Event states reflect real-time database transactions.
           </span>
         </div>
       </div>

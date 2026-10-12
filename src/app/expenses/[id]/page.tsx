@@ -125,14 +125,12 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
     }
   }
 
-  // Lifecycle Actions
   const handleSubmitExpense = async () => {
-    if (!confirm('Submit this expense for ACM Core review?')) return
     setActionLoading(true)
     setError(null)
     try {
       await fetchApi(`/api/expenses/${expenseId}/submit`, { method: 'POST' })
-      setSuccessMsg('Expense successfully submitted for review.')
+      setSuccessMsg('Expense submitted for review.')
       await loadData()
     } catch (err: any) {
       setError(err.message)
@@ -142,7 +140,6 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const handleApproveExpense = async () => {
-    if (!confirm('Approve this expense record?')) return
     setActionLoading(true)
     setError(null)
     try {
@@ -158,7 +155,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
 
   const handleRejectExpense = async () => {
     if (!rejectReason.trim()) {
-      setError('Rejection explanation is mandatory.')
+      setError('Please provide a rejection reason.')
       return
     }
     setActionLoading(true)
@@ -166,7 +163,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
     try {
       await fetchApi(`/api/expenses/${expenseId}/reject`, {
         method: 'POST',
-        body: JSON.stringify({ reason: rejectReason.trim() }),
+        body: JSON.stringify({ rejectionReason: rejectReason.trim() }),
       })
       setSuccessMsg('Expense rejected.')
       setRejectModalOpen(false)
@@ -180,7 +177,9 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const handleDeleteExpense = async () => {
-    if (!confirm('Are you sure you want to delete this expense?')) return
+    if (!confirm('Are you sure you want to permanently delete this expense?')) {
+      return
+    }
     setActionLoading(true)
     setError(null)
     try {
@@ -192,7 +191,6 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
     }
   }
 
-  // Receipt File Upload Flow
   const handleReceiptFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -222,7 +220,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
       const sha256Hex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
 
       // 3. Request upload signature from backend
-      const sigRes = await fetchApi<{
+      await fetchApi<{
         timestamp: number
         signature: string
         cloudName: string
@@ -248,7 +246,6 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
       setError(err.message || 'Failed to upload receipt.')
     } finally {
       setUploadingReceipt(false)
-      // Reset input
       e.target.value = ''
     }
   }
@@ -267,6 +264,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
         <EmptyState
           title="Expense Not Found"
           description="The requested expense ledger entry does not exist or you lack permission to view it."
+          icon={ReceiptIcon}
         />
       </AppShell>
     )
@@ -289,14 +287,16 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
     <AppShell>
       <div className="space-y-6 max-w-5xl mx-auto">
         {/* Main Header Card */}
-        <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm space-y-4">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">{expense.title}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                  {expense.title}
+                </h1>
                 <ExpenseStatusBadge status={expense.status} />
               </div>
-              <p className="text-xs text-zinc-500 font-mono mt-1">Expense ID: {expense.id}</p>
+              <p className="text-xs text-slate-400 font-mono mt-1">Expense ID: {expense.id}</p>
             </div>
 
             {/* Actions */}
@@ -305,7 +305,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                 <button
                   onClick={handleSubmitExpense}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
                 >
                   <Send className="w-3.5 h-3.5" />
                   Submit for Approval
@@ -316,7 +316,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                 <button
                   onClick={handleApproveExpense}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Approve Expense
@@ -330,7 +330,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                     setRejectModalOpen(true)
                   }}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
                 >
                   <XCircle className="w-3.5 h-3.5" />
                   Reject Expense
@@ -341,7 +341,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                 <button
                   onClick={handleDeleteExpense}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-red-700 rounded text-xs font-medium border border-zinc-300 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-rose-50 text-rose-600 rounded-lg text-xs font-semibold border border-rose-200 transition-colors shadow-2xs"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Delete
@@ -352,11 +352,10 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
 
           {/* Locked Semester Notification */}
           {isSemesterLocked && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-800 flex items-center gap-2 font-medium">
-              <Lock className="w-4 h-4 text-red-600 flex-shrink-0" />
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-900 flex items-center gap-2.5 font-medium">
+              <Lock className="w-4 h-4 text-rose-600 flex-shrink-0" />
               <span>
-                This semester ({expense.semester?.name}) is locked. This expense cannot be modified,
-                submitted, approved, or deleted.
+                Academic Semester ({expense.semester?.name}) is currently locked. This expense entry is immutable.
               </span>
             </div>
           )}
@@ -367,7 +366,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
           )}
 
           {expense.rejectionReason && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800">
               <span className="font-bold">Rejection Reason:</span> {expense.rejectionReason}
             </div>
           )}
@@ -375,44 +374,44 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
 
         {/* Expense Properties Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
               <ReceiptIcon className="w-4 h-4 text-emerald-600" />
               Financial Information
             </h3>
 
             <div className="space-y-3 text-xs">
-              <div className="flex justify-between py-1 border-b border-zinc-100">
-                <span className="text-zinc-500">Amount:</span>
-                <span className="font-mono text-base font-bold text-zinc-900">
+              <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Disbursement Amount:</span>
+                <span className="font-mono text-lg font-bold text-slate-900">
                   {formatCurrency(expense.amount)}
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-zinc-100">
-                <span className="text-zinc-500">Category:</span>
-                <span className="font-semibold text-zinc-900">{expense.category?.name}</span>
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Category:</span>
+                <span className="font-semibold text-slate-800">{expense.category?.name}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-zinc-100">
-                <span className="text-zinc-500">Organizing Club:</span>
-                <span className="font-semibold text-zinc-900">
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Organizing Club:</span>
+                <span className="font-semibold text-slate-800">
                   {expense.club?.name} ({expense.club?.code})
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-zinc-100">
-                <span className="text-zinc-500">Semester:</span>
-                <span className="font-semibold text-zinc-900">
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Semester:</span>
+                <span className="font-semibold text-slate-800">
                   {expense.semester?.name}{' '}
                   {expense.semester?.isLocked && (
-                    <span className="text-red-600 font-bold ml-1">[LOCKED]</span>
+                    <span className="text-rose-600 font-bold ml-1">[LOCKED]</span>
                   )}
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-zinc-100">
-                <span className="text-zinc-500">Transaction Date:</span>
-                <span className="font-mono text-zinc-900">{formatDate(expense.date)}</span>
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Transaction Date:</span>
+                <span className="font-mono text-slate-800 font-medium">{formatDate(expense.date)}</span>
               </div>
               <div className="flex justify-between py-1">
-                <span className="text-zinc-500">Linked Event:</span>
+                <span className="text-slate-400 font-medium">Linked Event:</span>
                 {expense.event ? (
                   <Link
                     href={`/events/${expense.event.id}`}
@@ -421,40 +420,40 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                     {expense.event.title}
                   </Link>
                 ) : (
-                  <span className="text-zinc-400 italic">None (General Club Ledger)</span>
+                  <span className="text-slate-400 italic">General Club Ledger (No Event)</span>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
               <Building className="w-4 h-4 text-emerald-600" />
-              Provenance & Description
+              Provenance & Justification
             </h3>
 
             <div className="space-y-3 text-xs">
-              <div className="flex justify-between py-1 border-b border-zinc-100">
-                <span className="text-zinc-500">Created By:</span>
-                <span className="font-medium text-zinc-900">
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Created By:</span>
+                <span className="font-semibold text-slate-800">
                   {expense.createdBy?.name || expense.createdBy?.email}
                 </span>
               </div>
               {expense.reviewedBy && (
-                <div className="flex justify-between py-1 border-b border-zinc-100">
-                  <span className="text-zinc-500">Reviewed By:</span>
-                  <span className="font-medium text-zinc-900">
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-400 font-medium">Reviewed By:</span>
+                  <span className="font-semibold text-slate-800">
                     {expense.reviewedBy.name || expense.reviewedBy.email}
                   </span>
                 </div>
               )}
-              <div className="flex justify-between py-1 border-b border-zinc-100">
-                <span className="text-zinc-500">Created Timestamp:</span>
-                <span className="font-mono text-zinc-600">{formatDate(expense.createdAt)}</span>
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Logged Timestamp:</span>
+                <span className="font-mono text-slate-600 font-medium">{formatDate(expense.createdAt)}</span>
               </div>
               <div>
-                <span className="text-zinc-500 block mb-1">Description:</span>
-                <p className="text-zinc-700 whitespace-pre-line leading-relaxed bg-zinc-50 p-2.5 rounded border border-zinc-200">
+                <span className="text-slate-400 font-medium block mb-1">Description:</span>
+                <p className="text-slate-700 whitespace-pre-line leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
                   {expense.description || 'No description provided.'}
                 </p>
               </div>
@@ -463,20 +462,20 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Receipts Module */}
-        <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-3">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div>
-              <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-900 flex items-center gap-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-emerald-600" />
                 Proof of Expense (Receipts)
               </h3>
-              <p className="text-[11px] text-zinc-500">
-                Maximum 5MB • Formats: JPEG, PNG, WebP, PDF • Deduplication via SHA-256
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Maximum 5MB • Formats: JPEG, PNG, WebP, PDF • Deduplication via client-side SHA-256
               </p>
             </div>
 
             {canAddReceipt && (
-              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-sm cursor-pointer transition-colors">
+              <label className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-2xs cursor-pointer transition-colors">
                 <Upload className="w-3.5 h-3.5" />
                 <span>{uploadingReceipt ? 'Processing...' : 'Upload Receipt'}</span>
                 <input
@@ -490,16 +489,10 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
             )}
           </div>
 
-          <div className="p-3 bg-zinc-50 border border-zinc-200 rounded text-[11px] text-zinc-600 leading-relaxed">
-            <span className="font-semibold text-zinc-800">Architectural Note:</span> In this direct-upload
-            pattern, SHA-256 is computed client-side by the browser from raw file bytes. Cloudinary direct
-            uploads abstract binary streams from the server backend.
-          </div>
-
           {expense.receipts && expense.receipts.length > 0 ? (
-            <div className="overflow-x-auto border border-zinc-200 rounded-lg">
-              <table className="w-full text-left text-xs text-zinc-600">
-                <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-700 font-semibold uppercase tracking-wider text-[11px]">
+            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <table className="w-full text-left text-xs text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold uppercase tracking-wider text-[11px]">
                   <tr>
                     <th className="py-2.5 px-3">File Name</th>
                     <th className="py-2.5 px-3">Format</th>
@@ -508,15 +501,15 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                     <th className="py-2.5 px-3 text-right">View</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-200">
+                <tbody className="divide-y divide-slate-100">
                   {expense.receipts.map((r) => (
-                    <tr key={r.id} className="hover:bg-zinc-50/80">
-                      <td className="py-2.5 px-3 font-medium text-zinc-900">{r.fileName}</td>
-                      <td className="py-2.5 px-3 font-mono text-[11px] text-zinc-600">{r.mimeType}</td>
-                      <td className="py-2.5 px-3 font-mono text-[11px] text-zinc-600">
+                    <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-2.5 px-3 font-semibold text-slate-900">{r.fileName}</td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600">{r.mimeType}</td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600">
                         {(r.fileSizeBytes / 1024).toFixed(1)} KB
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-[10px] text-zinc-500 max-w-xs truncate">
+                      <td className="py-2.5 px-3 font-mono text-[10px] text-slate-400 max-w-xs truncate">
                         {r.sha256}
                       </td>
                       <td className="py-2.5 px-3 text-right">
@@ -524,7 +517,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                           href={r.fileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-emerald-600 hover:text-emerald-800 font-medium inline-flex items-center gap-1"
+                          className="text-emerald-600 hover:text-emerald-800 font-semibold inline-flex items-center gap-1 transition-colors"
                         >
                           <span>Open</span>
                           <ExternalLink className="w-3 h-3" />
@@ -536,8 +529,8 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
               </table>
             </div>
           ) : (
-            <div className="p-4 bg-zinc-50 border border-dashed border-zinc-200 rounded text-center text-xs text-zinc-500">
-              No receipts uploaded yet.
+            <div className="p-4 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-center text-xs text-slate-500">
+              No receipt documents uploaded for this expense yet.
             </div>
           )}
         </div>
@@ -545,7 +538,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
         {/* Reject Modal */}
         <ModalDialog
           isOpen={rejectModalOpen}
-          title="Reject Expense"
+          title="Reject Expense Ledger Entry"
           description="Provide a mandatory reason for rejecting this club expense."
           onClose={() => setRejectModalOpen(false)}
         >
@@ -554,14 +547,14 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
               rows={3}
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="State the reason for rejecting this expense..."
-              className="w-full text-sm border border-zinc-300 rounded p-2.5 focus:ring-2 focus:ring-red-500 focus:outline-none"
+              placeholder="State the audit justification for rejecting this expense..."
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-rose-500 focus:outline-none"
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setRejectModalOpen(false)}
-                className="px-3 py-1.5 border border-zinc-300 rounded text-xs text-zinc-700"
+                className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -569,7 +562,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                 type="button"
                 disabled={actionLoading}
                 onClick={handleRejectExpense}
-                className="px-3 py-1.5 bg-red-600 text-white rounded text-xs font-semibold"
+                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs"
               >
                 Confirm Rejection
               </button>

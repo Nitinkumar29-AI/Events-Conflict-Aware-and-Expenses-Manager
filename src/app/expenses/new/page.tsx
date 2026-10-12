@@ -7,7 +7,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { AlertBanner, LoadingSpinner } from '@/components/ui/Feedback'
 import { fetchApi, ApiError } from '@/lib/api'
 import { canClient } from '@/lib/auth-client'
-import { Receipt, Calendar, Tag, FileText, IndianRupee, Link as LinkIcon } from 'lucide-react'
+import { Receipt, Calendar, Tag, FileText, IndianRupee, Link as LinkIcon, DollarSign } from 'lucide-react'
 
 interface MetaResponse {
   categories: { id: string; name: string; description: string | null }[]
@@ -73,7 +73,6 @@ export default function NewExpensePage() {
     e.preventDefault()
     setError(null)
 
-    // Decimal string validation: up to 2 decimal places, positive
     if (!/^\d+(\.\d{1,2})?$/.test(amount.trim()) || parseFloat(amount) <= 0) {
       setError('Amount must be a positive decimal number with up to 2 decimal places (e.g. 250.00).')
       return
@@ -124,17 +123,22 @@ export default function NewExpensePage() {
     <AppShell>
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
-          <h2 className="text-xl font-bold text-zinc-900 tracking-tight">Record New Expense</h2>
-          <p className="text-xs text-zinc-500 mt-1">
-            Expenses initialize in DRAFT status and must be submitted for ACM Core approval.
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            Record New Expense
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Expenses initialize in DRAFT status and must be submitted with receipts for Core verification.
           </p>
         </div>
 
         {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
 
-        <form onSubmit={handleSubmit} className="bg-white border border-zinc-200 rounded-lg p-6 shadow-sm space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white border border-slate-200 rounded-xl p-6 sm:p-8 shadow-xs space-y-5"
+        >
           <div>
-            <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
               Expense Title *
             </label>
             <input
@@ -145,31 +149,31 @@ export default function NewExpensePage() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Hackathon Mentors Refreshments"
-              className="w-full text-sm border border-zinc-300 rounded px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
-              Description
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+              Description / Business Justification
             </label>
             <textarea
               rows={2}
               maxLength={1000}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Provide itemized details or justification..."
-              className="w-full text-sm border border-zinc-300 rounded px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              placeholder="Provide itemized details or justification for this expenditure..."
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Amount (INR) *
               </label>
-              <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500 font-bold">
+              <div className="relative rounded-lg shadow-2xs">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 font-bold">
                   ₹
                 </div>
                 <input
@@ -178,20 +182,20 @@ export default function NewExpensePage() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="1500.00"
-                  className="w-full text-sm border border-zinc-300 rounded pl-8 pr-3 py-2 font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg pl-8 pr-3.5 py-2.5 font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
-              <p className="text-[10px] text-zinc-400 mt-1">Exact Decimal(12,2) with no float loss.</p>
+              <p className="text-[10px] text-slate-400 mt-1">Exact Decimal(12,2) with no float loss.</p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Category *
               </label>
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full text-sm border border-zinc-300 rounded px-3 py-2 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium text-slate-700"
               >
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -204,7 +208,7 @@ export default function NewExpensePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Expense Date *
               </label>
               <input
@@ -212,21 +216,21 @@ export default function NewExpensePage() {
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full text-sm border border-zinc-300 rounded px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium text-slate-700"
               />
-              <p className="text-[10px] text-zinc-400 mt-1">
+              <p className="text-[10px] text-slate-400 mt-1">
                 Must fall within an active, unlocked academic semester.
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 uppercase tracking-wider mb-1">
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Linked Event (Optional)
               </label>
               <select
                 value={eventId}
                 onChange={(e) => setEventId(e.target.value)}
-                className="w-full text-sm border border-zinc-300 rounded px-3 py-2 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium text-slate-700"
               >
                 <option value="">General Club Expense (No Event)</option>
                 {events.map((ev) => (
@@ -238,18 +242,18 @@ export default function NewExpensePage() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-zinc-200 flex justify-end gap-3">
+          <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-4 py-2 border border-zinc-300 rounded text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+              className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-sm disabled:opacity-50"
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors"
             >
               {submitting ? 'Creating Expense...' : 'Create Expense (Draft)'}
             </button>

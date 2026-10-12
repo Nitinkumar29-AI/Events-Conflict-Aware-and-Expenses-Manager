@@ -15,6 +15,8 @@ import {
   ShieldAlert,
   ArrowRight,
   ExternalLink,
+  MapPin,
+  Calendar,
 } from 'lucide-react'
 
 export interface ConflictRow {
@@ -113,7 +115,7 @@ export default function ConflictsPage() {
     try {
       await fetchApi(`/api/conflicts/${activeConflictId}/resolve`, {
         method: 'POST',
-        body: JSON.stringify({ note: noteInput.trim() || 'Resolved' }),
+        body: JSON.stringify({ note: noteInput.trim() || 'Resolved by authority' }),
       })
       setSuccessMsg('Conflict resolved successfully.')
       setResolveModalOpen(false)
@@ -133,7 +135,7 @@ export default function ConflictsPage() {
     try {
       await fetchApi(`/api/conflicts/${activeConflictId}/override`, {
         method: 'POST',
-        body: JSON.stringify({ note: noteInput.trim() || 'Overridden' }),
+        body: JSON.stringify({ note: noteInput.trim() || 'Overridden by authority' }),
       })
       setSuccessMsg('Conflict administrative override recorded.')
       setOverrideModalOpen(false)
@@ -151,27 +153,27 @@ export default function ConflictsPage() {
       <div className="space-y-6 max-w-7xl mx-auto">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-zinc-900 tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               Conflict Detection Control Center
-            </h2>
-            <span className="text-xs font-mono bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold border border-amber-300">
-              ACM Core Hub
+            </h1>
+            <span className="text-[11px] font-semibold bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200">
+              Core Adjudication
             </span>
           </div>
-          <p className="text-xs text-zinc-500 mt-1">
-            Review and adjudicate system-detected scheduling, venue, and audience overlaps.
+          <p className="text-xs text-slate-500 mt-1">
+            Review, evaluate, and adjudicate system-detected scheduling, venue, and audience overlaps.
           </p>
         </div>
 
-        {/* Principle Banner */}
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-start gap-3">
+        {/* Human Decision Principle Banner */}
+        <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-950 flex items-start gap-3 shadow-2xs">
           <ShieldAlert className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
             <span className="font-bold">Human Decision Principle:</span>
-            <p className="text-amber-800 leading-relaxed">
-              The conflict detection engine detects and scores overlaps without ever modifying,
-              rescheduling, or cancelling events automatically. ACM Core and Super Admins evaluate
-              severity scores and take deliberate human action.
+            <p className="text-amber-900 leading-relaxed">
+              The detection engine evaluates prospective overlaps across time, location, and audience.
+              It strictly alerts authorized coordinators without modifying or cancelling events
+              automatically. All resolutions require explicit human confirmation.
             </p>
           </div>
         </div>
@@ -181,17 +183,17 @@ export default function ConflictsPage() {
           <AlertBanner type="success" message={successMsg} onDismiss={() => setSuccessMsg(null)} />
         )}
 
-        {/* Filters */}
-        <div className="bg-white p-4 rounded-lg border border-zinc-200 shadow-sm flex flex-wrap items-center gap-3 text-xs">
-          <div className="flex items-center gap-1.5 text-zinc-700 font-semibold">
-            <Filter className="w-4 h-4 text-zinc-400" />
+        {/* Filter Bar */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center gap-3 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
+            <Filter className="w-4 h-4 text-slate-400" />
             <span>Filters:</span>
           </div>
 
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-zinc-300 rounded px-2.5 py-1.5 bg-white text-zinc-700"
+            className="border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           >
             <option value="">All Statuses</option>
             <option value="OPEN">OPEN</option>
@@ -203,18 +205,18 @@ export default function ConflictsPage() {
           <select
             value={severityFilter}
             onChange={(e) => setSeverityFilter(e.target.value)}
-            className="border border-zinc-300 rounded px-2.5 py-1.5 bg-white text-zinc-700"
+            className="border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           >
             <option value="">All Severities</option>
-            <option value="HIGH">HIGH (&ge;0.70)</option>
-            <option value="MEDIUM">MEDIUM (0.40 - 0.69)</option>
-            <option value="LOW">LOW (&lt;0.40)</option>
+            <option value="HIGH">HIGH (Score &ge; 70)</option>
+            <option value="MEDIUM">MEDIUM (Score 40–69)</option>
+            <option value="LOW">LOW (Score &lt; 40)</option>
           </select>
 
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="border border-zinc-300 rounded px-2.5 py-1.5 bg-white text-zinc-700"
+            className="border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           >
             <option value="">All Conflict Types</option>
             <option value="VENUE">VENUE</option>
@@ -231,7 +233,7 @@ export default function ConflictsPage() {
                 setSeverityFilter('')
                 setTypeFilter('')
               }}
-              className="text-xs text-indigo-600 hover:text-indigo-800 underline ml-auto"
+              className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold underline ml-auto"
             >
               Reset Filters
             </button>
@@ -240,17 +242,18 @@ export default function ConflictsPage() {
 
         {/* Conflicts Table */}
         {loading ? (
-          <LoadingSpinner message="Scanning conflict records..." />
+          <LoadingSpinner message="Evaluating conflict records..." />
         ) : conflicts.length === 0 ? (
           <EmptyState
-            title="No conflicts found"
-            description="No active conflict records matched your current query."
+            title="No conflicts detected"
+            description="No active conflict records matched your current query parameters."
+            icon={AlertTriangle}
           />
         ) : (
-          <div className="bg-white border border-zinc-200 rounded-lg shadow-sm overflow-hidden">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-zinc-600">
-                <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-700 font-semibold uppercase tracking-wider text-[11px]">
+              <table className="w-full text-left text-xs text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold uppercase tracking-wider text-[11px]">
                   <tr>
                     <th className="py-3 px-4">Event A</th>
                     <th className="py-3 px-4">Event B</th>
@@ -262,7 +265,7 @@ export default function ConflictsPage() {
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-200">
+                <tbody className="divide-y divide-slate-100">
                   {conflicts.map((c) => {
                     const canAck =
                       c.status === 'OPEN' &&
@@ -280,15 +283,15 @@ export default function ConflictsPage() {
                       canClient(user?.role, 'OVERRIDE_CONFLICT')
 
                     return (
-                      <tr key={c.id} className="hover:bg-zinc-50/80 transition-colors">
+                      <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-3 px-4 max-w-[200px]">
                           <Link
                             href={`/events/${c.eventA?.id}`}
-                            className="font-semibold text-zinc-900 hover:text-indigo-600 line-clamp-1"
+                            className="font-semibold text-slate-900 hover:text-indigo-600 line-clamp-1"
                           >
                             {c.eventA?.title || c.eventAId}
                           </Link>
-                          <span className="text-[10px] text-zinc-400">
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
                             {c.eventA?.club?.name} ({c.eventA?.venue?.name})
                           </span>
                         </td>
@@ -296,22 +299,22 @@ export default function ConflictsPage() {
                         <td className="py-3 px-4 max-w-[200px]">
                           <Link
                             href={`/events/${c.eventB?.id}`}
-                            className="font-semibold text-zinc-900 hover:text-indigo-600 line-clamp-1"
+                            className="font-semibold text-slate-900 hover:text-indigo-600 line-clamp-1"
                           >
                             {c.eventB?.title || c.eventBId}
                           </Link>
-                          <span className="text-[10px] text-zinc-400">
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
                             {c.eventB?.club?.name} ({c.eventB?.venue?.name})
                           </span>
                         </td>
 
-                        <td className="py-3 px-4 font-semibold text-zinc-800">{c.conflictType}</td>
+                        <td className="py-3 px-4 font-semibold text-slate-800">{c.conflictType}</td>
 
                         <td className="py-3 px-4">
                           <ConflictSeverityBadge severity={c.severity} />
                         </td>
 
-                        <td className="py-3 px-4 font-mono font-bold text-zinc-900">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-900">
                           {c.conflictScore !== null ? `${c.conflictScore}/100` : '-'}
                         </td>
 
@@ -320,7 +323,7 @@ export default function ConflictsPage() {
                         </td>
 
                         <td className="py-3 px-4 max-w-xs">
-                          <div className="line-clamp-2 text-[11px] text-zinc-600">
+                          <div className="line-clamp-2 text-[11px] text-slate-600">
                             {c.description}
                           </div>
                           {c.resolutionNote && (
@@ -336,7 +339,7 @@ export default function ConflictsPage() {
                               <button
                                 onClick={() => handleAcknowledge(c.id)}
                                 disabled={actionLoading}
-                                className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded text-[11px] font-semibold"
+                                className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-md text-[11px] font-semibold transition-colors"
                               >
                                 Ack
                               </button>
@@ -349,7 +352,7 @@ export default function ConflictsPage() {
                                   setResolveModalOpen(true)
                                 }}
                                 disabled={actionLoading}
-                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[11px] font-semibold"
+                                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-md text-[11px] font-semibold transition-colors"
                               >
                                 Resolve
                               </button>
@@ -362,7 +365,7 @@ export default function ConflictsPage() {
                                   setOverrideModalOpen(true)
                                 }}
                                 disabled={actionLoading}
-                                className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-300 rounded text-[11px] font-semibold"
+                                className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-md text-[11px] font-semibold transition-colors"
                               >
                                 Override
                               </button>
@@ -375,7 +378,7 @@ export default function ConflictsPage() {
                 </tbody>
               </table>
             </div>
-            <div className="p-3 bg-zinc-50 border-t border-zinc-200 text-xs text-zinc-500">
+            <div className="p-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-500">
               Showing {conflicts.length} conflict record(s)
             </div>
           </div>
@@ -384,8 +387,8 @@ export default function ConflictsPage() {
         {/* Resolve Modal */}
         <ModalDialog
           isOpen={resolveModalOpen}
-          title="Resolve Conflict"
-          description="Enter a note explaining the mitigation before marking this conflict as resolved."
+          title="Resolve Conflict Record"
+          description="Provide a clear description of how the timing or venue was adjusted before resolving."
           onClose={() => setResolveModalOpen(false)}
         >
           <div className="space-y-4">
@@ -393,14 +396,14 @@ export default function ConflictsPage() {
               rows={3}
               value={noteInput}
               onChange={(e) => setNoteInput(e.target.value)}
-              placeholder="e.g. Discussed with reps, times rescheduled."
-              className="w-full text-sm border border-zinc-300 rounded p-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              placeholder="e.g. Rescheduled timing with mutual organizer consent."
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setResolveModalOpen(false)}
-                className="px-3 py-1.5 border border-zinc-300 rounded text-xs text-zinc-700"
+                className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -408,7 +411,7 @@ export default function ConflictsPage() {
                 type="button"
                 disabled={actionLoading}
                 onClick={handleResolve}
-                className="px-3 py-1.5 bg-emerald-600 text-white rounded text-xs font-semibold"
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs"
               >
                 Mark Resolved
               </button>
@@ -420,7 +423,7 @@ export default function ConflictsPage() {
         <ModalDialog
           isOpen={overrideModalOpen}
           title="Administrative Conflict Override"
-          description="Authorize the coexistence of conflicting events with an explicit audit note."
+          description="Authorize the coexistence of conflicting events with an explicit audit justification."
           onClose={() => setOverrideModalOpen(false)}
         >
           <div className="space-y-4">
@@ -428,14 +431,14 @@ export default function ConflictsPage() {
               rows={3}
               value={noteInput}
               onChange={(e) => setNoteInput(e.target.value)}
-              placeholder="e.g. Joint festival granted core exception."
-              className="w-full text-sm border border-zinc-300 rounded p-2.5 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              placeholder="e.g. Core approved co-located parallel tracks for college symposium."
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:outline-none"
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setOverrideModalOpen(false)}
-                className="px-3 py-1.5 border border-zinc-300 rounded text-xs text-zinc-700"
+                className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -443,7 +446,7 @@ export default function ConflictsPage() {
                 type="button"
                 disabled={actionLoading}
                 onClick={handleOverride}
-                className="px-3 py-1.5 bg-purple-600 text-white rounded text-xs font-semibold"
+                className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs"
               >
                 Confirm Override
               </button>

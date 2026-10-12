@@ -31,6 +31,7 @@ import {
   MessageSquare,
   ShieldAlert,
   ArrowRight,
+  FileText,
 } from 'lucide-react'
 
 export interface EventDetail {
@@ -100,11 +101,12 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   // Modals
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
+  const [reasonInput, setReasonInput] = useState('')
+
+  // Conflict Modals
+  const [activeConflictId, setActiveConflictId] = useState<string | null>(null)
   const [resolveModalOpen, setResolveModalOpen] = useState(false)
   const [overrideModalOpen, setOverrideModalOpen] = useState(false)
-  const [activeConflictId, setActiveConflictId] = useState<string | null>(null)
-
-  const [reasonInput, setReasonInput] = useState('')
   const [noteInput, setNoteInput] = useState('')
 
   const loadData = async () => {
@@ -130,34 +132,12 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     }
   }, [session, eventId])
 
-  const handleDetectConflicts = async () => {
-    setDetecting(true)
-    setError(null)
-    setSuccessMsg(null)
-    try {
-      const res = await fetchApi<ConflictItem[]>(`/api/events/${eventId}/conflicts/detect`, {
-        method: 'POST',
-      })
-      setConflicts(res.data || [])
-      setSuccessMsg(
-        res.data?.length
-          ? `Detection completed. Found ${res.data.length} active conflict(s). Human decision required.`
-          : 'Detection completed. No conflicts detected!'
-      )
-    } catch (err: any) {
-      setError(err.message || 'Conflict detection failed.')
-    } finally {
-      setDetecting(false)
-    }
-  }
-
   const handleSubmitEvent = async () => {
-    if (!confirm('Submit this event for ACM Core review?')) return
     setActionLoading(true)
     setError(null)
     try {
       await fetchApi(`/api/events/${eventId}/submit`, { method: 'POST' })
-      setSuccessMsg('Event submitted successfully for review.')
+      setSuccessMsg('Event submitted for review successfully.')
       await loadData()
     } catch (err: any) {
       setError(err.message)
@@ -167,17 +147,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   const handleVerifyEvent = async () => {
-    const comment = prompt('Optional verification comment:', 'Verified by ACM Core')
-    if (comment === null) return
-
     setActionLoading(true)
     setError(null)
     try {
-      await fetchApi(`/api/events/${eventId}/verify`, {
-        method: 'POST',
-        body: JSON.stringify({ comment: comment.trim() || undefined }),
-      })
-      setSuccessMsg('Event verified successfully!')
+      await fetchApi(`/api/events/${eventId}/verify`, { method: 'POST' })
+      setSuccessMsg('Event verified and scheduled.')
       await loadData()
     } catch (err: any) {
       setError(err.message)
@@ -188,7 +162,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   const handleRejectEvent = async () => {
     if (!reasonInput.trim()) {
-      setError('Rejection reason is required (min 3 chars).')
+      setError('Please provide a rejection reason.')
       return
     }
     setActionLoading(true)
@@ -196,7 +170,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     try {
       await fetchApi(`/api/events/${eventId}/reject`, {
         method: 'POST',
-        body: JSON.stringify({ reason: reasonInput.trim() }),
+        body: JSON.stringify({ rejectionReason: reasonInput.trim() }),
       })
       setSuccessMsg('Event rejected.')
       setRejectModalOpen(false)
@@ -211,7 +185,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   const handleCancelEvent = async () => {
     if (!reasonInput.trim()) {
-      setError('Cancellation reason is required (min 3 chars).')
+      setError('Please provide a cancellation reason.')
       return
     }
     setActionLoading(true)
@@ -232,7 +206,24 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     }
   }
 
-  // Conflict Action handlers
+  const handleDetectConflicts = async () => {
+    setDetecting(true)
+    setError(null)
+    try {
+      const res = await fetchApi<any>(`/api/events/${eventId}/conflicts/detect`, {
+        method: 'POST',
+      })
+      setSuccessMsg(
+        `Conflict detection complete: ${res.data.detectedCount} conflict(s) detected (${res.data.highCount} high).`
+      )
+      await loadData()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setDetecting(false)
+    }
+  }
+
   const handleAcknowledgeConflict = async (conflictId: string) => {
     setActionLoading(true)
     setError(null)
@@ -330,7 +321,6 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     canClient(user?.role, 'UPDATE_EVENT')
   const canVerify = event.status === 'SUBMITTED' && canClient(user?.role, 'VERIFY_EVENT')
   const canReject = event.status === 'SUBMITTED' && canClient(user?.role, 'REJECT_EVENT')
-  // Phase 3 rule: Only SUPER_ADMIN and ACM_CORE can CANCEL
   const canCancel =
     (event.status === 'VERIFIED' || event.status === 'SUBMITTED') &&
     canClient(user?.role, 'CANCEL_EVENT')
@@ -338,18 +328,20 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <AppShell>
       <div className="space-y-6 max-w-6xl mx-auto">
-        {/* Header & Status Bar */}
-        <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm space-y-4">
+        {/* Header & Status Card */}
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">{event.title}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                  {event.title}
+                </h1>
                 <EventStatusBadge status={event.status} />
-                <span className="px-2 py-0.5 rounded text-xs font-mono bg-zinc-100 text-zinc-700 border border-zinc-200">
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-slate-100 text-slate-700 border border-slate-200 font-medium">
                   {event.eventType}
                 </span>
               </div>
-              <p className="text-xs text-zinc-500 font-mono mt-1">ID: {event.id}</p>
+              <p className="text-xs text-slate-400 font-mono mt-1">ID: {event.id}</p>
             </div>
 
             {/* Lifecycle Action Buttons */}
@@ -357,7 +349,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               {canEdit && (
                 <Link
                   href={`/events/${event.id}/edit`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded text-xs font-medium border border-zinc-300 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 shadow-2xs transition-colors"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                   Edit
@@ -368,7 +360,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 <button
                   onClick={handleSubmitEvent}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
                 >
                   <Send className="w-3.5 h-3.5" />
                   Submit for Review
@@ -379,7 +371,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 <button
                   onClick={handleVerifyEvent}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Verify Event
@@ -393,7 +385,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                     setRejectModalOpen(true)
                   }}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
                 >
                   <XCircle className="w-3.5 h-3.5" />
                   Reject Event
@@ -407,7 +399,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                     setCancelModalOpen(true)
                   }}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-700 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
                 >
                   <Ban className="w-3.5 h-3.5" />
                   Cancel Event
@@ -418,7 +410,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               <button
                 onClick={handleDetectConflicts}
                 disabled={detecting}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
               >
                 <Search className="w-3.5 h-3.5" />
                 {detecting ? 'Scanning Engine...' : 'Detect Conflicts'}
@@ -432,37 +424,37 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           )}
 
           {event.rejectionReason && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800">
               <span className="font-bold">Rejection Reason:</span> {event.rejectionReason}
             </div>
           )}
         </div>
 
-        {/* Conflict Detection Engine Testing Panel */}
-        <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+        {/* Conflict Detection Engine Panel */}
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
                 <AlertTriangle className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                   Conflict Engine Status
                 </h3>
-                <p className="text-[11px] text-zinc-500 font-medium">
-                  Candidate window: &plusmn;30 min • Jaccard audience overlap • Composite score [0-100]
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Scan window: &plusmn;30 min • Audience collision • Composite severity score [0-100]
                 </p>
               </div>
             </div>
 
-            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-50 text-slate-700 border border-slate-200">
               {conflicts.length} conflict(s) tracked
             </span>
           </div>
 
           {conflicts.length > 0 ? (
             <div className="space-y-4">
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 flex items-center gap-2 font-medium">
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center gap-2.5 font-medium">
                 <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0" />
                 <span>
                   Conflict detected — human decision required. The engine does NOT automatically
@@ -470,9 +462,9 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 </span>
               </div>
 
-              <div className="overflow-x-auto border border-zinc-200 rounded-lg">
-                <table className="w-full text-left text-xs text-zinc-600">
-                  <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-700 font-semibold uppercase tracking-wider text-[11px]">
+              <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                <table className="w-full text-left text-xs text-slate-600">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold uppercase tracking-wider text-[11px]">
                     <tr>
                       <th className="py-2.5 px-3">Type</th>
                       <th className="py-2.5 px-3">Severity</th>
@@ -483,7 +475,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                       <th className="py-2.5 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-200">
+                  <tbody className="divide-y divide-slate-100">
                     {conflicts.map((c) => {
                       const otherEvent = c.eventAId === event.id ? c.eventB : c.eventA
                       const canAck =
@@ -502,12 +494,12 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                         canClient(user?.role, 'OVERRIDE_CONFLICT')
 
                       return (
-                        <tr key={c.id} className="hover:bg-zinc-50/80">
-                          <td className="py-2.5 px-3 font-semibold text-zinc-800">{c.conflictType}</td>
+                        <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-2.5 px-3 font-semibold text-slate-800">{c.conflictType}</td>
                           <td className="py-2.5 px-3">
                             <ConflictSeverityBadge severity={c.severity} />
                           </td>
-                          <td className="py-2.5 px-3 font-mono font-bold text-zinc-800">
+                          <td className="py-2.5 px-3 font-mono font-bold text-slate-800">
                             {c.conflictScore !== null ? `${c.conflictScore}/100` : '-'}
                           </td>
                           <td className="py-2.5 px-3">
@@ -519,11 +511,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                             </Link>
                           </td>
                           <td className="py-2.5 px-3 max-w-xs">
-                            <div className="line-clamp-2 text-[11px] text-zinc-600 whitespace-pre-line">
+                            <div className="line-clamp-2 text-[11px] text-slate-600 whitespace-pre-line">
                               {c.description}
                             </div>
                             {c.resolutionNote && (
-                              <div className="text-[10px] text-emerald-700 mt-0.5">
+                              <div className="text-[10px] text-emerald-700 mt-0.5 font-medium">
                                 Note: {c.resolutionNote}
                               </div>
                             )}
@@ -535,7 +527,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                             {canAck && (
                               <button
                                 onClick={() => handleAcknowledgeConflict(c.id)}
-                                className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded text-[11px] font-medium"
+                                className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-md text-[11px] font-semibold transition-colors"
                               >
                                 Ack
                               </button>
@@ -547,7 +539,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                                   setNoteInput('')
                                   setResolveModalOpen(true)
                                 }}
-                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[11px] font-medium"
+                                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-md text-[11px] font-semibold transition-colors"
                               >
                                 Resolve
                               </button>
@@ -559,7 +551,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                                   setNoteInput('')
                                   setOverrideModalOpen(true)
                                 }}
-                                className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-300 rounded text-[11px] font-medium"
+                                className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 rounded-md text-[11px] font-semibold transition-colors"
                               >
                                 Override
                               </button>
@@ -573,8 +565,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
           ) : (
-            <div className="p-4 bg-zinc-50 border border-dashed border-zinc-200 rounded text-center text-xs text-zinc-500">
-              No conflicts currently logged for this event. Click &quot;Detect Conflicts&quot; to run a scan.
+            <div className="p-4 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-center text-xs text-slate-500">
+              No conflicts currently logged for this event. Click &quot;Detect Conflicts&quot; to run an engine scan.
             </div>
           )}
         </div>
@@ -582,111 +574,111 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         {/* Event Specification Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Logistics & Location */}
-          <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
               <MapPin className="w-4 h-4 text-indigo-600" />
               Venue & Logistics
             </h3>
 
             <div className="space-y-3 text-xs">
-              <div className="flex justify-between py-1 border-b border-zinc-100">
-                <span className="text-zinc-500">Venue:</span>
-                <span className="font-semibold text-zinc-900">
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Assigned Venue:</span>
+                <span className="font-semibold text-slate-800">
                   {event.venue?.name} (Capacity: {event.venue?.capacity})
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-zinc-100">
-                <span className="text-zinc-500">Organizing Club:</span>
-                <span className="font-semibold text-zinc-900">
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Organizing Club:</span>
+                <span className="font-semibold text-slate-800">
                   {event.club?.name} ({event.club?.code})
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-zinc-100">
-                <span className="text-zinc-500">Academic Semester:</span>
-                <span className="font-semibold text-zinc-900">
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Academic Semester:</span>
+                <span className="font-semibold text-slate-800">
                   {event.semester?.name} {event.semester?.isLocked && '(LOCKED)'}
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-zinc-100">
-                <span className="text-zinc-500">Expected Attendees:</span>
-                <span className="font-semibold text-zinc-900">{event.expectedAttendees}</span>
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Expected Attendees:</span>
+                <span className="font-semibold text-slate-800">{event.expectedAttendees}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-zinc-100">
-                <span className="text-zinc-500">Start Time (IST):</span>
-                <span className="font-mono text-zinc-900">{formatIST(event.startAt)}</span>
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Start Time (IST):</span>
+                <span className="font-mono text-slate-800 font-medium">{formatIST(event.startAt)}</span>
               </div>
               <div className="flex justify-between py-1">
-                <span className="text-zinc-500">End Time (IST):</span>
-                <span className="font-mono text-zinc-900">{formatIST(event.endAt)}</span>
+                <span className="text-slate-400 font-medium">End Time (IST):</span>
+                <span className="font-mono text-slate-800 font-medium">{formatIST(event.endAt)}</span>
               </div>
             </div>
           </div>
 
           {/* Structured Audience & Metadata */}
-          <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-900 border-b border-zinc-100 pb-2 flex items-center gap-2">
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-2 flex items-center gap-2">
               <Users className="w-4 h-4 text-indigo-600" />
               Audience & Targeting
             </h3>
 
             <div className="space-y-3 text-xs">
               <div>
-                <span className="text-zinc-500 block mb-1">Target Years:</span>
+                <span className="text-slate-400 font-medium block mb-1">Target Years:</span>
                 {event.targetYears && event.targetYears.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
                     {event.targetYears.map((y) => (
                       <span
                         key={y}
-                        className="px-2 py-0.5 bg-zinc-100 text-zinc-700 rounded text-[11px] font-medium border border-zinc-200"
+                        className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[11px] font-medium border border-slate-200"
                       >
                         Year {y}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <span className="text-indigo-600 font-medium">All Years (Wildcard)</span>
+                  <span className="text-indigo-600 font-semibold">All Years (Wildcard)</span>
                 )}
               </div>
 
               <div>
-                <span className="text-zinc-500 block mb-1">Target Branches:</span>
+                <span className="text-slate-400 font-medium block mb-1">Target Branches:</span>
                 {event.targetBranches && event.targetBranches.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
                     {event.targetBranches.map((b) => (
                       <span
                         key={b}
-                        className="px-2 py-0.5 bg-zinc-100 text-zinc-700 rounded text-[11px] font-medium border border-zinc-200"
+                        className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[11px] font-medium border border-slate-200"
                       >
                         {b}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <span className="text-indigo-600 font-medium">All Branches (Wildcard)</span>
+                  <span className="text-indigo-600 font-semibold">All Branches (Wildcard)</span>
                 )}
               </div>
 
               <div>
-                <span className="text-zinc-500 block mb-1">Tags:</span>
+                <span className="text-slate-400 font-medium block mb-1">Tags:</span>
                 {event.tags && event.tags.length > 0 ? (
                   <div className="flex flex-wrap gap-1">
                     {event.tags.map((t) => (
                       <span
                         key={t}
-                        className="px-2 py-0.5 bg-zinc-50 text-zinc-600 rounded text-[11px] border border-zinc-200"
+                        className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded text-[11px] border border-slate-200"
                       >
                         #{t}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <span className="text-zinc-400 italic">No tags specified</span>
+                  <span className="text-slate-400 italic">No tags specified</span>
                 )}
               </div>
 
-              <div className="pt-2 border-t border-zinc-100">
-                <span className="text-zinc-500 block mb-1">Description:</span>
-                <p className="text-zinc-700 whitespace-pre-line leading-relaxed">
+              <div className="pt-2 border-t border-slate-100">
+                <span className="text-slate-400 font-medium block mb-1">Description:</span>
+                <p className="text-slate-700 whitespace-pre-line leading-relaxed">
                   {event.description || 'No description provided.'}
                 </p>
               </div>
@@ -696,29 +688,29 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
         {/* Review & Audit Log History */}
         {event.reviews && event.reviews.length > 0 && (
-          <div className="bg-white p-6 rounded-lg border border-zinc-200 shadow-sm space-y-3">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-900 flex items-center gap-2">
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-2">
               <MessageSquare className="w-4 h-4 text-indigo-600" />
               Review History
             </h3>
-            <div className="divide-y divide-zinc-100 text-xs">
+            <div className="divide-y divide-slate-100 text-xs">
               {event.reviews.map((rev) => (
                 <div key={rev.id} className="py-2.5 flex items-start justify-between gap-4">
                   <div>
-                    <div className="font-semibold text-zinc-900 flex items-center gap-2">
+                    <div className="font-semibold text-slate-900 flex items-center gap-2">
                       <span>{rev.reviewer?.name || rev.reviewer?.email}</span>
                       <RoleBadge role={rev.reviewer?.role} />
                       <span
                         className={`text-[11px] font-bold ${
-                          rev.decision === 'VERIFIED' ? 'text-emerald-600' : 'text-red-600'
+                          rev.decision === 'VERIFIED' ? 'text-emerald-600' : 'text-rose-600'
                         }`}
                       >
                         {rev.decision}
                       </span>
                     </div>
-                    {rev.comment && <p className="text-zinc-600 mt-0.5">{rev.comment}</p>}
+                    {rev.comment && <p className="text-slate-600 mt-0.5">{rev.comment}</p>}
                   </div>
-                  <span className="text-[11px] text-zinc-400 font-mono flex-shrink-0">
+                  <span className="text-[11px] text-slate-400 font-mono flex-shrink-0">
                     {formatIST(rev.createdAt)}
                   </span>
                 </div>
@@ -740,13 +732,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               value={reasonInput}
               onChange={(e) => setReasonInput(e.target.value)}
               placeholder="Explain why this event is being rejected..."
-              className="w-full text-sm border border-zinc-300 rounded p-2.5 focus:ring-2 focus:ring-red-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-rose-500 focus:outline-none"
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setRejectModalOpen(false)}
-                className="px-3 py-1.5 border border-zinc-300 rounded text-xs text-zinc-700"
+                className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -754,7 +746,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 type="button"
                 disabled={actionLoading}
                 onClick={handleRejectEvent}
-                className="px-3 py-1.5 bg-red-600 text-white rounded text-xs font-semibold"
+                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs"
               >
                 Confirm Rejection
               </button>
@@ -765,7 +757,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         {/* Cancel Event Modal */}
         <ModalDialog
           isOpen={cancelModalOpen}
-          title="Cancel Event"
+          title="Cancel Scheduled Event"
           description="Cancellation is restricted to ACM Core / Admin and requires an auditable reason."
           onClose={() => setCancelModalOpen(false)}
         >
@@ -775,13 +767,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               value={reasonInput}
               onChange={(e) => setReasonInput(e.target.value)}
               placeholder="State the reason for cancelling this event..."
-              className="w-full text-sm border border-zinc-300 rounded p-2.5 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-slate-500 focus:outline-none"
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setCancelModalOpen(false)}
-                className="px-3 py-1.5 border border-zinc-300 rounded text-xs text-zinc-700"
+                className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -789,7 +781,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 type="button"
                 disabled={actionLoading}
                 onClick={handleCancelEvent}
-                className="px-3 py-1.5 bg-rose-600 text-white rounded text-xs font-semibold"
+                className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs"
               >
                 Confirm Cancellation
               </button>
@@ -800,7 +792,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         {/* Resolve Conflict Modal */}
         <ModalDialog
           isOpen={resolveModalOpen}
-          title="Resolve Conflict"
+          title="Resolve Conflict Record"
           description="Provide a resolution note explaining how the conflict was mitigated."
           onClose={() => setResolveModalOpen(false)}
         >
@@ -810,13 +802,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               value={noteInput}
               onChange={(e) => setNoteInput(e.target.value)}
               placeholder="e.g. Schedule was adjusted or venue partitioned."
-              className="w-full text-sm border border-zinc-300 rounded p-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setResolveModalOpen(false)}
-                className="px-3 py-1.5 border border-zinc-300 rounded text-xs text-zinc-700"
+                className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -824,7 +816,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 type="button"
                 disabled={actionLoading}
                 onClick={handleResolveConflict}
-                className="px-3 py-1.5 bg-emerald-600 text-white rounded text-xs font-semibold"
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs"
               >
                 Mark Resolved
               </button>
@@ -835,7 +827,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
         {/* Override Conflict Modal */}
         <ModalDialog
           isOpen={overrideModalOpen}
-          title="Administrative Override"
+          title="Administrative Conflict Override"
           description="Authorize coexisting events despite the detected conflict."
           onClose={() => setOverrideModalOpen(false)}
         >
@@ -845,13 +837,13 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               value={noteInput}
               onChange={(e) => setNoteInput(e.target.value)}
               placeholder="e.g. Joint co-hosted symposium approved by Core."
-              className="w-full text-sm border border-zinc-300 rounded p-2.5 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:outline-none"
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setOverrideModalOpen(false)}
-                className="px-3 py-1.5 border border-zinc-300 rounded text-xs text-zinc-700"
+                className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -859,7 +851,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
                 type="button"
                 disabled={actionLoading}
                 onClick={handleOverrideConflict}
-                className="px-3 py-1.5 bg-purple-600 text-white rounded text-xs font-semibold"
+                className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs"
               >
                 Confirm Override
               </button>

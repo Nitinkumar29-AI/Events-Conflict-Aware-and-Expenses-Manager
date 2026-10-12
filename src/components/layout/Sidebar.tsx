@@ -9,159 +9,259 @@ import {
   Calendar,
   CalendarDays,
   AlertTriangle,
-  Receipt, Bell,
+  Receipt,
+  Bell,
   Archive,
   BarChart3,
   PlusCircle,
+  X,
+  Shield,
+  Layers,
+  Wallet,
 } from 'lucide-react'
 
-export function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean
+  onCloseMobile?: () => void
+}
+
+export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const role = session?.user?.role
 
   const [unreadCount, setUnreadCount] = React.useState(0)
-  
+
   React.useEffect(() => {
     if (session?.user) {
       fetch('/api/notifications/unread-count')
-        .then(res => res.json())
-        .then(data => setUnreadCount(data.count || 0))
+        .then((res) => res.json())
+        .then((data) => setUnreadCount(data.count || 0))
         .catch(console.error)
     }
   }, [session?.user])
 
+type NavItem = {
+  name: string
+  href: string
+  icon: any
+  show: boolean
+  badge?: string
+  count?: number
+}
+
   const isViewer = role === 'VIEWER'
   const canViewBudgets = role === 'SUPER_ADMIN' || role === 'ACM_CORE' || role === 'ACM_EXEC'
 
-    const navItems = [
-      {
-        name: 'Dashboard',
-        href: '/dashboard',
-        icon: LayoutDashboard,
-        show: true,
-      },
-      {
-        name: 'Events',
-        href: '/events',
-        icon: CalendarDays,
-        show: true,
-      },
-      {
-        name: 'Calendar',
-        href: '/calendar',
-        icon: Calendar,
-        show: true,
-      },
-      {
-        name: 'Conflicts',
-        href: '/conflicts',
-        icon: AlertTriangle,
-        show: !isViewer,
-        badge: 'Core/Rep',
-      },
-      {
-        name: 'Expenses',
-        href: '/expenses',
-        icon: Receipt,
-        show: !isViewer,
-      },
-      {
-        name: 'Notifications',
-        href: '/notifications',
-        icon: Bell,
-        show: !!session?.user,
-        badge: unreadCount > 0 ? unreadCount : undefined,
-      },
-      {
-        name: 'Budgets',
-        href: '/budgets',
-        icon: Receipt, // Reusing Receipt icon, could also be PieChart
-        show: canViewBudgets,
-        badge: 'Core/Exec',
-      },
-      {
-        name: 'Archive',
-        href: '/archive',
-        icon: Archive,
-        show: !isViewer && !!session?.user,
-      },
-      {
-        name: 'Reports',
-        href: '/reports',
-        icon: BarChart3,
-        show: !isViewer && !!session?.user,
-      },
-    ]
+  const navGroups: { group: string; items: NavItem[] }[] = [
+    {
+      group: 'Overview',
+      items: [
+        {
+          name: 'Dashboard',
+          href: '/dashboard',
+          icon: LayoutDashboard,
+          show: true,
+        },
+        {
+          name: 'Events',
+          href: '/events',
+          icon: CalendarDays,
+          show: true,
+        },
+        {
+          name: 'Calendar',
+          href: '/calendar',
+          icon: Calendar,
+          show: true,
+        },
+      ],
+    },
+    {
+      group: 'Operations',
+      items: [
+        {
+          name: 'Conflicts',
+          href: '/conflicts',
+          icon: AlertTriangle,
+          show: !isViewer,
+          badge: 'Core/Rep',
+        },
+        {
+          name: 'Expenses',
+          href: '/expenses',
+          icon: Receipt,
+          show: !isViewer,
+        },
+        {
+          name: 'Budgets',
+          href: '/budgets',
+          icon: Wallet,
+          show: canViewBudgets,
+          badge: 'Core/Exec',
+        },
+      ],
+    },
+    {
+      group: 'Records & Intelligence',
+      items: [
+        {
+          name: 'Notifications',
+          href: '/notifications',
+          icon: Bell,
+          show: !!session?.user,
+          count: unreadCount > 0 ? unreadCount : undefined,
+        },
+        {
+          name: 'Archive',
+          href: '/archive',
+          icon: Archive,
+          show: !isViewer && !!session?.user,
+        },
+        {
+          name: 'Reports',
+          href: '/reports',
+          icon: BarChart3,
+          show: !isViewer && !!session?.user,
+        },
+      ],
+    },
+  ]
 
-  return (
-    <aside className="w-64 bg-zinc-900 text-zinc-300 flex flex-col flex-shrink-0 min-h-screen">
-      <div className="p-5 border-b border-zinc-800 flex items-center gap-3">
-        <div className="w-8 h-8 rounded bg-indigo-600 text-white font-bold flex items-center justify-center text-sm">
-          ACM
-        </div>
-        <div>
-          <div className="font-bold text-sm text-white leading-tight">Incursion</div>
-          <div className="text-[11px] text-zinc-400">Events & Expenses</div>
-        </div>
+  const sidebarContent = (
+    <div className="flex flex-col h-full bg-white border-r border-slate-200">
+      {/* Brand Header */}
+      <div className="h-16 px-5 border-b border-slate-200 flex items-center justify-between">
+        <Link href="/dashboard" className="flex items-center gap-3 group">
+          <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs group-hover:bg-indigo-700 transition-colors">
+            <Shield className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="font-bold text-sm text-slate-900 tracking-tight leading-tight">
+              ACM Incursion
+            </div>
+            <div className="text-[11px] font-medium text-slate-500">Events & Finances</div>
+          </div>
+        </Link>
+        {onCloseMobile && (
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            className="md:hidden p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+            aria-label="Close sidebar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems
-          .filter((item) => item.show)
-          .map((item) => {
-            const Icon = item.icon
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span>{item.name}</span>
-                </div>
-                {item.badge && (
-                  <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            )
-          })}
-      </nav>
+      {/* Navigation Links */}
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+        {navGroups.map((group) => {
+          const visibleItems = group.items.filter((item) => item.show)
+          if (visibleItems.length === 0) return null
 
+          return (
+            <div key={group.group} className="space-y-1">
+              <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                {group.group}
+              </div>
+              {visibleItems.map((item) => {
+                const Icon = item.icon
+                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onCloseMobile}
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                      isActive
+                        ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon
+                        className={`w-4 h-4 flex-shrink-0 ${
+                          isActive ? 'text-indigo-600' : 'text-slate-400'
+                        }`}
+                      />
+                      <span className="truncate">{item.name}</span>
+                    </div>
+                    {item.count !== undefined ? (
+                      <span className="ml-auto inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                        {item.count}
+                      </span>
+                    ) : item.badge ? (
+                      <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 font-normal">
+                        {item.badge}
+                      </span>
+                    ) : null}
+                  </Link>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Quick Actions */}
       {!isViewer && (
-        <div className="p-4 border-t border-zinc-800 space-y-2">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 px-1">
+        <div className="p-3 border-t border-slate-200 space-y-2 bg-slate-50/50">
+          <div className="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Quick Actions
           </div>
-          <Link
-            href="/events/new"
-            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded transition-colors"
-          >
-            <PlusCircle className="w-3.5 h-3.5 text-indigo-400" />
-            <span>New Event</span>
-          </Link>
-          <Link
-            href="/expenses/new"
-            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded transition-colors"
-          >
-            <PlusCircle className="w-3.5 h-3.5 text-emerald-400" />
-            <span>New Expense</span>
-          </Link>
+          <div className="grid grid-cols-2 gap-2">
+            <Link
+              href="/events/new"
+              onClick={onCloseMobile}
+              className="flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-2xs transition-colors"
+            >
+              <PlusCircle className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Event</span>
+            </Link>
+            <Link
+              href="/expenses/new"
+              onClick={onCloseMobile}
+              className="flex items-center justify-center gap-1.5 px-2.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-2xs transition-colors"
+            >
+              <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Expense</span>
+            </Link>
+          </div>
         </div>
       )}
 
-      <div className="p-4 border-t border-zinc-800 text-[11px] text-zinc-500">
-        <div>PostgreSQL 17 • Next.js 16</div>
-        <div>Prisma 6.19 • RBAC Active</div>
+      {/* System Footer Info */}
+      <div className="px-4 py-3 border-t border-slate-200 text-[11px] text-slate-400 flex items-center justify-between bg-slate-50/30">
+        <span>PostgreSQL 16 • Next.js 16</span>
+        <span className="flex items-center gap-1 font-mono text-[10px] text-emerald-600 font-medium">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          RBAC Active
+        </span>
       </div>
-    </aside>
+    </div>
+  )
+
+  return (
+    <>
+      {/* Desktop Sticky Sidebar */}
+      <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-30">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile Drawer Backdrop and Overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+            onClick={onCloseMobile}
+          />
+          <div className="fixed inset-y-0 left-0 w-64 max-w-[80vw] z-50 animate-in slide-in-from-left duration-200">
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+    </>
   )
 }
