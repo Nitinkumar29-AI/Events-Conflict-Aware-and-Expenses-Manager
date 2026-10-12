@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { fetchApi } from '@/lib/api'
 import { LoadingSpinner, EmptyState, AlertBanner } from '@/components/ui/Feedback'
 import {
@@ -26,6 +27,7 @@ import {
   ShieldAlert,
   ArrowRight,
   User,
+  RotateCcw,
 } from 'lucide-react'
 
 export default function ArchivePage() {
@@ -169,9 +171,16 @@ export default function ArchivePage() {
     }
   }
 
+  const hasActiveEventFilters = Boolean(eventSearch || eventStatus || eventType || eventPast !== 'all')
+  const hasActiveConflictFilters = Boolean(conflictType || conflictSeverity || conflictStatus)
+  const hasActiveAuditFilters = Boolean(auditTargetType || auditAction)
+
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-7xl mx-auto">
+        {/* Breadcrumbs Navigation */}
+        <Breadcrumbs items={[{ label: 'Institutional Memory & Archive' }]} />
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -200,7 +209,7 @@ export default function ArchivePage() {
             }`}
           >
             <Calendar className="w-4 h-4" />
-            Events Archive
+            <span>Events Archive</span>
           </button>
           <button
             type="button"
@@ -215,7 +224,7 @@ export default function ArchivePage() {
             }`}
           >
             <AlertTriangle className="w-4 h-4" />
-            Conflict History
+            <span>Conflict History</span>
           </button>
           {canViewAudit && (
             <button
@@ -231,7 +240,7 @@ export default function ArchivePage() {
               }`}
             >
               <History className="w-4 h-4" />
-              Audit Logs
+              <span>Audit Logs</span>
             </button>
           )}
         </div>
@@ -242,80 +251,120 @@ export default function ArchivePage() {
         {activeTab === 'events' && (
           <div className="space-y-4">
             {/* Filters Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 p-4 bg-white border border-slate-200 rounded-xl shadow-2xs">
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  placeholder="Search title..."
-                  value={eventSearch}
-                  onChange={(e) => setEventSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && loadEvents()}
-                  className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-                />
+            <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Search title..."
+                    value={eventSearch}
+                    onChange={(e) => setEventSearch(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && loadEvents()}
+                    className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <select
+                  aria-label="Filter by Event Status"
+                  value={eventStatus}
+                  onChange={(e) => {
+                    setEventStatus(e.target.value)
+                    setEventPage(1)
+                  }}
+                  className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="VERIFIED">Verified / Scheduled</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="SUBMITTED">Submitted</option>
+                  <option value="DRAFT">Draft</option>
+                  <option value="REJECTED">Rejected</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+
+                <select
+                  aria-label="Filter by Event Type"
+                  value={eventType}
+                  onChange={(e) => {
+                    setEventType(e.target.value)
+                    setEventPage(1)
+                  }}
+                  className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">All Types</option>
+                  <option value="WORKSHOP">Workshop</option>
+                  <option value="HACKATHON">Hackathon</option>
+                  <option value="SEMINAR">Seminar</option>
+                  <option value="COMPETITION">Competition</option>
+                  <option value="CULTURAL">Cultural</option>
+                  <option value="SPORTS">Sports</option>
+                  <option value="OTHER">Other</option>
+                </select>
+
+                <select
+                  aria-label="Filter by Timeframe"
+                  value={eventPast}
+                  onChange={(e) => {
+                    setEventPast(e.target.value as any)
+                    setEventPage(1)
+                  }}
+                  className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">All Timeframes</option>
+                  <option value="true">Past Events Only</option>
+                  <option value="false">Upcoming Events Only</option>
+                </select>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEventPage(1)
+                      loadEvents()
+                    }}
+                    className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
+                  >
+                    Apply Filter
+                  </button>
+                  {hasActiveEventFilters && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEventSearch('')
+                        setEventStatus('')
+                        setEventType('')
+                        setEventPast('all')
+                        setEventPage(1)
+                      }}
+                      className="px-2.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1"
+                      title="Reset all filters"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span className="sr-only">Reset</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <select
-                aria-label="Filter by Event Status"
-                value={eventStatus}
-                onChange={(e) => {
-                  setEventStatus(e.target.value)
-                  setEventPage(1)
-                }}
-                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">All Statuses</option>
-                <option value="VERIFIED">Verified / Scheduled</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="SUBMITTED">Submitted</option>
-                <option value="DRAFT">Draft</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-
-              <select
-                aria-label="Filter by Event Type"
-                value={eventType}
-                onChange={(e) => {
-                  setEventType(e.target.value)
-                  setEventPage(1)
-                }}
-                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">All Types</option>
-                <option value="WORKSHOP">Workshop</option>
-                <option value="HACKATHON">Hackathon</option>
-                <option value="SEMINAR">Seminar</option>
-                <option value="COMPETITION">Competition</option>
-                <option value="CULTURAL">Cultural</option>
-                <option value="SPORTS">Sports</option>
-                <option value="OTHER">Other</option>
-              </select>
-
-              <select
-                aria-label="Filter by Timeframe"
-                value={eventPast}
-                onChange={(e) => {
-                  setEventPast(e.target.value as any)
-                  setEventPage(1)
-                }}
-                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="all">All Timeframes</option>
-                <option value="true">Past Events Only</option>
-                <option value="false">Upcoming Events Only</option>
-              </select>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setEventPage(1)
-                  loadEvents()
-                }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
-              >
-                Apply Filter
-              </button>
+              {hasActiveEventFilters && (
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+                  <span>Filtered view active</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEventSearch('')
+                      setEventStatus('')
+                      setEventType('')
+                      setEventPast('all')
+                      setEventPage(1)
+                    }}
+                    className="text-indigo-600 hover:text-indigo-800 font-semibold"
+                  >
+                    Reset all event filters
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Table */}
@@ -330,6 +379,22 @@ export default function ArchivePage() {
                 <p className="text-xs text-slate-500 mt-1">
                   No historical records match your filter parameters.
                 </p>
+                {hasActiveEventFilters && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEventSearch('')
+                      setEventStatus('')
+                      setEventType('')
+                      setEventPast('all')
+                      setEventPage(1)
+                    }}
+                    className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset Filters</span>
+                  </button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto bg-white border border-slate-200 rounded-xl shadow-2xs">
@@ -421,64 +486,102 @@ export default function ArchivePage() {
         {activeTab === 'conflicts' && (
           <div className="space-y-4">
             {/* Conflict Filters */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-4 bg-white border border-slate-200 rounded-xl shadow-2xs">
-              <select
-                aria-label="Filter by Conflict Type"
-                value={conflictType}
-                onChange={(e) => {
-                  setConflictType(e.target.value)
-                  setConflictPage(1)
-                }}
-                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">All Types</option>
-                <option value="VENUE">Venue Overlap</option>
-                <option value="AUDIENCE">Audience Clashing</option>
-                <option value="ORGANIZER">Organizer Conflict</option>
-                <option value="TIGHT_TURNAROUND">Tight Turnaround</option>
-              </select>
+            <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <select
+                  aria-label="Filter by Conflict Type"
+                  value={conflictType}
+                  onChange={(e) => {
+                    setConflictType(e.target.value)
+                    setConflictPage(1)
+                  }}
+                  className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">All Types</option>
+                  <option value="VENUE">Venue Overlap</option>
+                  <option value="AUDIENCE">Audience Clashing</option>
+                  <option value="ORGANIZER">Organizer Conflict</option>
+                  <option value="TIGHT_TURNAROUND">Tight Turnaround</option>
+                </select>
 
-              <select
-                aria-label="Filter by Severity"
-                value={conflictSeverity}
-                onChange={(e) => {
-                  setConflictSeverity(e.target.value)
-                  setConflictPage(1)
-                }}
-                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">All Severities</option>
-                <option value="HIGH">High Severity</option>
-                <option value="MEDIUM">Medium Severity</option>
-                <option value="LOW">Low Severity</option>
-              </select>
+                <select
+                  aria-label="Filter by Severity"
+                  value={conflictSeverity}
+                  onChange={(e) => {
+                    setConflictSeverity(e.target.value)
+                    setConflictPage(1)
+                  }}
+                  className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">All Severities</option>
+                  <option value="HIGH">High Severity</option>
+                  <option value="MEDIUM">Medium Severity</option>
+                  <option value="LOW">Low Severity</option>
+                </select>
 
-              <select
-                aria-label="Filter by Conflict Status"
-                value={conflictStatus}
-                onChange={(e) => {
-                  setConflictStatus(e.target.value)
-                  setConflictPage(1)
-                }}
-                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">All Resolution States</option>
-                <option value="OPEN">Open (Unresolved)</option>
-                <option value="ACKNOWLEDGED">Acknowledged</option>
-                <option value="RESOLVED">Resolved</option>
-                <option value="OVERRIDDEN">Overridden</option>
-              </select>
+                <select
+                  aria-label="Filter by Conflict Status"
+                  value={conflictStatus}
+                  onChange={(e) => {
+                    setConflictStatus(e.target.value)
+                    setConflictPage(1)
+                  }}
+                  className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">All Resolution States</option>
+                  <option value="OPEN">Open (Unresolved)</option>
+                  <option value="ACKNOWLEDGED">Acknowledged</option>
+                  <option value="RESOLVED">Resolved</option>
+                  <option value="OVERRIDDEN">Overridden</option>
+                </select>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setConflictPage(1)
-                  loadConflicts()
-                }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
-              >
-                Filter Conflicts
-              </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConflictPage(1)
+                      loadConflicts()
+                    }}
+                    className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
+                  >
+                    Filter Conflicts
+                  </button>
+                  {hasActiveConflictFilters && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConflictType('')
+                        setConflictSeverity('')
+                        setConflictStatus('')
+                        setConflictPage(1)
+                      }}
+                      className="px-2.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1"
+                      title="Reset conflict filters"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span className="sr-only">Reset</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {hasActiveConflictFilters && (
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+                  <span>Filtered conflict records active</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConflictType('')
+                      setConflictSeverity('')
+                      setConflictStatus('')
+                      setConflictPage(1)
+                    }}
+                    className="text-indigo-600 hover:text-indigo-800 font-semibold"
+                  >
+                    Reset all conflict filters
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Table */}
@@ -493,6 +596,21 @@ export default function ArchivePage() {
                 <p className="text-xs text-slate-500 mt-1">
                   No historical conflict records match the active criteria.
                 </p>
+                {hasActiveConflictFilters && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConflictType('')
+                      setConflictSeverity('')
+                      setConflictStatus('')
+                      setConflictPage(1)
+                    }}
+                    className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset Filters</span>
+                  </button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto bg-white border border-slate-200 rounded-xl shadow-2xs">
@@ -575,31 +693,67 @@ export default function ArchivePage() {
         {/* ================= AUDIT LOGS TAB ================= */}
         {activeTab === 'audit' && canViewAudit && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-white border border-slate-200 rounded-xl shadow-2xs">
-              <input
-                type="text"
-                placeholder="Target Type (e.g. Event, Expense)..."
-                value={auditTargetType}
-                onChange={(e) => setAuditTargetType(e.target.value)}
-                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              />
-              <input
-                type="text"
-                placeholder="Action (e.g. EVENT_VERIFY)..."
-                value={auditAction}
-                onChange={(e) => setAuditAction(e.target.value)}
-                className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setAuditPage(1)
-                  loadAuditLogs()
-                }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
-              >
-                Filter Audit Trail
-              </button>
+            <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <input
+                  type="text"
+                  placeholder="Target Type (e.g. Event, Expense)..."
+                  value={auditTargetType}
+                  onChange={(e) => setAuditTargetType(e.target.value)}
+                  className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                />
+                <input
+                  type="text"
+                  placeholder="Action (e.g. EVENT_VERIFY)..."
+                  value={auditAction}
+                  onChange={(e) => setAuditAction(e.target.value)}
+                  className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuditPage(1)
+                      loadAuditLogs()
+                    }}
+                    className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
+                  >
+                    Filter Audit Trail
+                  </button>
+                  {hasActiveAuditFilters && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuditTargetType('')
+                        setAuditAction('')
+                        setAuditPage(1)
+                      }}
+                      className="px-2.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1"
+                      title="Reset audit filters"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span className="sr-only">Reset</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {hasActiveAuditFilters && (
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+                  <span>Filtered audit events active</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuditTargetType('')
+                      setAuditAction('')
+                      setAuditPage(1)
+                    }}
+                    className="text-indigo-600 hover:text-indigo-800 font-semibold"
+                  >
+                    Reset all audit filters
+                  </button>
+                </div>
+              )}
             </div>
 
             {loading ? (
@@ -613,6 +767,20 @@ export default function ArchivePage() {
                 <p className="text-xs text-slate-500 mt-1">
                   No institutional audit events found matching the criteria.
                 </p>
+                {hasActiveAuditFilters && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuditTargetType('')
+                      setAuditAction('')
+                      setAuditPage(1)
+                    }}
+                    className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset Filters</span>
+                  </button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto bg-white border border-slate-200 rounded-xl shadow-2xs">

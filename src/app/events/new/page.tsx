@@ -3,6 +3,7 @@ import { auth } from '@/server/lib/auth'
 import { redirect } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
 import { EventForm } from '@/components/events/EventForm'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { canClient } from '@/lib/auth-client'
 
 export default async function NewEventPage() {
@@ -17,7 +18,13 @@ export default async function NewEventPage() {
 
   return (
     <AppShell>
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-5">
+        <Breadcrumbs
+          items={[
+            { label: 'Events Directory', href: '/events' },
+            { label: 'Create New Event' },
+          ]}
+        />
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             Create New Event

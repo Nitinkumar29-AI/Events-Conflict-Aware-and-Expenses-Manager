@@ -158,3 +158,58 @@ export function ModalDialog({
     </div>
   )
 }
+
+export function ConfirmDialog({
+  isOpen,
+  title,
+  message,
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
+  isDestructive = false,
+  isLoading = false,
+  onConfirm,
+  onCancel,
+}: {
+  isOpen: boolean
+  title: string
+  message: React.ReactNode
+  confirmLabel?: string
+  cancelLabel?: string
+  isDestructive?: boolean
+  isLoading?: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  if (!isOpen) return null
+
+  return (
+    <ModalDialog isOpen={isOpen} title={title} onClose={onCancel} maxWidth="max-w-md">
+      <div className="space-y-4">
+        <div className="text-xs text-slate-600 leading-relaxed">{message}</div>
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={onCancel}
+            className="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={onConfirm}
+            className={`px-3.5 py-2 text-xs font-semibold text-white rounded-lg transition-colors shadow-xs disabled:opacity-50 ${
+              isDestructive
+                ? 'bg-rose-600 hover:bg-rose-700'
+                : 'bg-indigo-600 hover:bg-indigo-700'
+            }`}
+          >
+            {isLoading ? 'Processing...' : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </ModalDialog>
+  )
+}
+

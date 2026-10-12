@@ -5,9 +5,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { AppShell } from '@/components/layout/AppShell'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { ExpenseStatusBadge, RoleBadge } from '@/components/ui/Badges'
-import { LoadingSpinner, EmptyState, AlertBanner, ModalDialog } from '@/components/ui/Feedback'
-import { fetchApi, ApiError } from '@/lib/api'
+import { LoadingSpinner, EmptyState, AlertBanner, ModalDialog, ConfirmDialog } from '@/components/ui/Feedback'
+import { fetchApi } from '@/lib/api'
 import { canClient, canManageClubResource } from '@/lib/auth-client'
 import {
   Receipt as ReceiptIcon,
@@ -24,6 +25,9 @@ import {
   FileText,
   ExternalLink,
   ShieldAlert,
+  Info,
+  Clock,
+  CheckCircle,
 } from 'lucide-react'
 
 export interface ReceiptItem {
@@ -76,6 +80,11 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
   const [uploadingReceipt, setUploadingReceipt] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  // Confirmation dialogs
+  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false)
+  const [confirmApproveOpen, setConfirmApproveOpen] = useState(false)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   // Rejection modal
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
@@ -130,7 +139,8 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
     setError(null)
     try {
       await fetchApi(`/api/expenses/${expenseId}/submit`, { method: 'POST' })
-      setSuccessMsg('Expense submitted for review.')
+      setSuccessMsg('Expense submitted for review successfully.')
+      setConfirmSubmitOpen(false)
       await loadData()
     } catch (err: any) {
       setError(err.message)
@@ -144,7 +154,8 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
     setError(null)
     try {
       await fetchApi(`/api/expenses/${expenseId}/approve`, { method: 'POST' })
-      setSuccessMsg('Expense approved.')
+      setSuccessMsg('Expense approved and ledger updated.')
+      setConfirmApproveOpen(false)
       await loadData()
     } catch (err: any) {
       setError(err.message)
@@ -165,7 +176,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
         method: 'POST',
         body: JSON.stringify({ rejectionReason: rejectReason.trim() }),
       })
-      setSuccessMsg('Expense rejected.')
+      setSuccessMsg('Expense has been rejected.')
       setRejectModalOpen(false)
       setRejectReason('')
       await loadData()
@@ -177,9 +188,6 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const handleDeleteExpense = async () => {
-    if (!confirm('Are you sure you want to permanently delete this expense?')) {
-      return
-    }
     setActionLoading(true)
     setError(null)
     try {
@@ -188,6 +196,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
     } catch (err: any) {
       setError(err.message)
       setActionLoading(false)
+      setConfirmDeleteOpen(false)
     }
   }
 
@@ -286,6 +295,53 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
   return (
     <AppShell>
       <div className="space-y-6 max-w-5xl mx-auto">
+        {/* Breadcrumbs Navigation */}
+        <Breadcrumbs
+          items={[
+            { label: 'Expenses Directory', href: '/expenses' },
+            { label: expense.title },
+          ]}
+        />
+
+        {/* Lifecycle Guide Banner */}
+        {expense.status === 'DRAFT' && (
+          <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-950 flex items-start gap-3 shadow-2xs">
+            <Clock className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <span className="font-bold">Next Step: Attach Receipts & Submit</span>
+              <p className="text-amber-900 leading-relaxed">
+                This expense is currently in DRAFT status. Make sure you upload all necessary invoice/receipt documents
+                below, then click <strong>Submit for Approval</strong> to send it to ACM Core for verification.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {expense.status === 'SUBMITTED' && (
+          <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl text-xs text-blue-950 flex items-start gap-3 shadow-2xs">
+            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <span className="font-bold">Under Review by ACM Core</span>
+              <p className="text-blue-900 leading-relaxed">
+                This expense has been submitted and is currently in the verification queue. Reviewers will verify
+                the receipts and allocate disbursements according to semester budget limits.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {expense.status === 'APPROVED' && (
+          <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-950 flex items-start gap-3 shadow-2xs">
+            <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <span className="font-bold">Approved Expenditure</span>
+              <p className="text-emerald-900 leading-relaxed">
+                This expense has been approved by ACM Core authority and charged against the category allocation.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Main Header Card */}
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -303,7 +359,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
             <div className="flex flex-wrap items-center gap-2">
               {canSubmit && (
                 <button
-                  onClick={handleSubmitExpense}
+                  onClick={() => setConfirmSubmitOpen(true)}
                   disabled={actionLoading}
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
                 >
@@ -314,7 +370,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
 
               {canApprove && (
                 <button
-                  onClick={handleApproveExpense}
+                  onClick={() => setConfirmApproveOpen(true)}
                   disabled={actionLoading}
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
                 >
@@ -339,7 +395,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
 
               {canDelete && (
                 <button
-                  onClick={handleDeleteExpense}
+                  onClick={() => setConfirmDeleteOpen(true)}
                   disabled={actionLoading}
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-rose-50 text-rose-600 rounded-lg text-xs font-semibold border border-rose-200 transition-colors shadow-2xs"
                 >
@@ -366,8 +422,8 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
           )}
 
           {expense.rejectionReason && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800">
-              <span className="font-bold">Rejection Reason:</span> {expense.rejectionReason}
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800">
+              <span className="font-bold">Rejection Audit Reason:</span> {expense.rejectionReason}
             </div>
           )}
         </div>
@@ -402,7 +458,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                 <span className="font-semibold text-slate-800">
                   {expense.semester?.name}{' '}
                   {expense.semester?.isLocked && (
-                    <span className="text-rose-600 font-bold ml-1">[LOCKED]</span>
+                    <span className="text-rose-600 font-bold ml-1 bg-rose-50 px-1 py-0.5 rounded border border-rose-200">[LOCKED]</span>
                   )}
                 </span>
               </div>
@@ -535,6 +591,43 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
           )}
         </div>
 
+        {/* Submit Confirm Dialog */}
+        <ConfirmDialog
+          isOpen={confirmSubmitOpen}
+          title="Submit Expense for Approval"
+          message={`Are you sure you want to submit "${expense.title}" (${formatCurrency(expense.amount)}) for ACM Core verification? Once submitted, the expense cannot be edited until reviewed.`}
+          confirmLabel="Submit for Review"
+          cancelLabel="Cancel"
+          isLoading={actionLoading}
+          onConfirm={handleSubmitExpense}
+          onCancel={() => setConfirmSubmitOpen(false)}
+        />
+
+        {/* Approve Confirm Dialog */}
+        <ConfirmDialog
+          isOpen={confirmApproveOpen}
+          title="Approve Expense Disbursement"
+          message={`Are you sure you want to approve "${expense.title}" for ${formatCurrency(expense.amount)}? This action will charge the expenditure against the club's allocated semester budget.`}
+          confirmLabel="Approve Expense"
+          cancelLabel="Cancel"
+          isLoading={actionLoading}
+          onConfirm={handleApproveExpense}
+          onCancel={() => setConfirmApproveOpen(false)}
+        />
+
+        {/* Delete Confirm Dialog */}
+        <ConfirmDialog
+          isOpen={confirmDeleteOpen}
+          title="Permanently Delete Expense"
+          message={`Are you sure you want to permanently delete "${expense.title}"? All associated receipt metadata will also be removed. This action cannot be undone.`}
+          confirmLabel="Delete Expense"
+          cancelLabel="Cancel"
+          isDestructive={true}
+          isLoading={actionLoading}
+          onConfirm={handleDeleteExpense}
+          onCancel={() => setConfirmDeleteOpen(false)}
+        />
+
         {/* Reject Modal */}
         <ModalDialog
           isOpen={rejectModalOpen}
@@ -548,13 +641,14 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               placeholder="State the audit justification for rejecting this expense..."
-              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-rose-500 focus:outline-none"
             />
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
+                disabled={actionLoading}
                 onClick={() => setRejectModalOpen(false)}
-                className="px-3.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                className="px-3.5 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
               >
                 Cancel
               </button>
@@ -562,9 +656,9 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                 type="button"
                 disabled={actionLoading}
                 onClick={handleRejectExpense}
-                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs"
+                className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs disabled:opacity-50"
               >
-                Confirm Rejection
+                {actionLoading ? 'Recording...' : 'Confirm Rejection'}
               </button>
             </div>
           </div>

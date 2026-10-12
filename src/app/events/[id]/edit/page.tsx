@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation'
 import prisma from '@/server/lib/prisma'
 import { AppShell } from '@/components/layout/AppShell'
 import { EventForm } from '@/components/events/EventForm'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { canManageClubResource } from '@/lib/auth-client'
 
 export default async function EditEventPage({
@@ -34,7 +35,14 @@ export default async function EditEventPage({
 
   return (
     <AppShell>
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-5">
+        <Breadcrumbs
+          items={[
+            { label: 'Events Directory', href: '/events' },
+            { label: event.title, href: `/events/${event.id}` },
+            { label: 'Edit Event' },
+          ]}
+        />
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             Edit Event: {event.title}

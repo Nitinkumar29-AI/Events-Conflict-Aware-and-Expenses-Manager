@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { fetchApi } from '@/lib/api'
-import { LoadingSpinner, AlertBanner, ModalDialog } from '@/components/ui/Feedback'
+import { LoadingSpinner, AlertBanner, ModalDialog, ConfirmDialog } from '@/components/ui/Feedback'
 import {
   Wallet,
   Landmark,
@@ -18,6 +19,7 @@ import {
   Receipt,
   CheckCircle2,
   Lock,
+  Info,
 } from 'lucide-react'
 
 type Semester = { id: string; name: string; isLocked: boolean }
@@ -63,6 +65,7 @@ export default function BudgetsPage() {
   const [loading, setLoading] = useState(true)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   // Allocation Form Modal
   const [showAllocForm, setShowAllocForm] = useState(false)
@@ -70,6 +73,10 @@ export default function BudgetsPage() {
   const [newAllocAmount, setNewAllocAmount] = useState('')
   const [newAllocNotes, setNewAllocNotes] = useState('')
   const [submittingAlloc, setSubmittingAlloc] = useState(false)
+
+  // Allocation Delete Dialog
+  const [allocToDelete, setAllocToDelete] = useState<{ id: string; name: string } | null>(null)
+  const [deletingAlloc, setDeletingAlloc] = useState(false)
 
   useEffect(() => {
     if (!role) return
@@ -117,6 +124,7 @@ export default function BudgetsPage() {
   const handleCreateAllocation = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmittingAlloc(true)
+    setError(null)
     try {
       await fetchApi('/api/budgets/allocations', {
         method: 'POST',
@@ -135,21 +143,28 @@ export default function BudgetsPage() {
       setNewAllocCat('')
       setNewAllocAmount('')
       setNewAllocNotes('')
+      setSuccessMsg('Category budget allocation created successfully.')
     } catch (err: any) {
-      alert(`Error creating allocation: ${err.message}`)
+      setError(`Error creating allocation: ${err.message}`)
     } finally {
       setSubmittingAlloc(false)
     }
   }
 
-  const handleDeleteAllocation = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this allocation?')) return
+  const handleDeleteAllocation = async () => {
+    if (!allocToDelete) return
+    setDeletingAlloc(true)
+    setError(null)
     try {
-      await fetchApi(`/api/budgets/allocations/${id}`, { method: 'DELETE' })
+      await fetchApi(`/api/budgets/allocations/${allocToDelete.id}`, { method: 'DELETE' })
       const res = await fetchApi<any>(`/api/budgets/${selectedSemesterId}/summary`)
       setSummary(res.data)
+      setSuccessMsg(`Allocation for "${allocToDelete.name}" deleted.`)
+      setAllocToDelete(null)
     } catch (err: any) {
-      alert(`Error deleting allocation: ${err.message}`)
+      setError(`Error deleting allocation: ${err.message}`)
+    } finally {
+      setDeletingAlloc(false)
     }
   }
 
@@ -157,22 +172,30 @@ export default function BudgetsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-7xl mx-auto">
+        {/* Breadcrumbs Navigation */}
+        <Breadcrumbs items={[{ label: 'Budget Management' }]} />
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <Landmark className="w-6 h-6 text-indigo-600" />
-              Budget Management
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <Landmark className="w-6 h-6 text-indigo-600" />
+                Budget & Financial Allocations
+              </h1>
+              <span className="text-[11px] font-semibold bg-indigo-50 text-indigo-800 px-2.5 py-0.5 rounded-full border border-indigo-200 shadow-2xs">
+                Ledger Control
+              </span>
+            </div>
             <p className="text-xs text-slate-500 mt-1">
-              Institutional allocations, semester envelopes, category limits, and utilization metrics.
+              Institutional semester envelopes, category caps, and expenditure run-rate metrics.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             {semesters.length > 0 && (
-              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-300 shadow-2xs">
                 <Calendar className="w-4 h-4 text-slate-400" />
                 <select
                   aria-label="Select Semester"
@@ -196,13 +219,16 @@ export default function BudgetsPage() {
                 className="inline-flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
               >
                 <PlusCircle className="w-4 h-4" />
-                New Allocation
+                <span>New Allocation</span>
               </button>
             )}
           </div>
         </div>
 
         {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
+        {successMsg && (
+          <AlertBanner type="success" message={successMsg} onDismiss={() => setSuccessMsg(null)} />
+        )}
 
         {loading && !semesters.length ? (
           <div className="py-20 flex justify-center">
@@ -343,7 +369,7 @@ export default function BudgetsPage() {
                     {summary.categoryBreakdown.length === 0 ? (
                       <tr>
                         <td colSpan={canManage ? 6 : 5} className="py-8 text-center text-slate-400">
-                          No category allocations found for this semester.
+                          No category allocations found for this semester. Click &quot;New Allocation&quot; above to assign category caps.
                         </td>
                       </tr>
                     ) : (
@@ -419,9 +445,10 @@ export default function BudgetsPage() {
                               {!c.id.startsWith('unallocated') && !summary.semester.isLocked && (
                                 <button
                                   type="button"
-                                  onClick={() => handleDeleteAllocation(c.id)}
-                                  className="text-slate-400 hover:text-rose-600 p-1 rounded-sm transition-colors"
+                                  onClick={() => setAllocToDelete({ id: c.id, name: c.categoryName })}
+                                  className="text-slate-400 hover:text-rose-600 p-1 rounded-md transition-colors"
                                   title="Delete Allocation"
+                                  aria-label={`Delete allocation for ${c.categoryName}`}
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -468,17 +495,31 @@ export default function BudgetsPage() {
           </div>
         ) : null}
 
+        {/* Delete Allocation Confirm Dialog */}
+        <ConfirmDialog
+          isOpen={Boolean(allocToDelete)}
+          title="Delete Category Allocation"
+          message={`Are you sure you want to delete the budget allocation for "${allocToDelete?.name}"? The remaining envelope will return to the unallocated semester pool.`}
+          confirmLabel="Delete Allocation"
+          cancelLabel="Cancel"
+          isDestructive={true}
+          isLoading={deletingAlloc}
+          onConfirm={handleDeleteAllocation}
+          onCancel={() => setAllocToDelete(null)}
+        />
+
         {/* Create Allocation Modal */}
         {showAllocForm && (
           <ModalDialog
             isOpen={showAllocForm}
             onClose={() => setShowAllocForm(false)}
             title="Create Budget Allocation"
+            description="Assign a dedicated financial envelope for a specific category within this semester."
           >
             <form onSubmit={handleCreateAllocation} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Budget Category
+                  Budget Category *
                 </label>
                 <select
                   required
@@ -497,7 +538,7 @@ export default function BudgetsPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Allocated Amount (₹)
+                  Allocated Amount (₹) *
                 </label>
                 <input
                   required
@@ -528,14 +569,14 @@ export default function BudgetsPage() {
                 <button
                   type="button"
                   onClick={() => setShowAllocForm(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingAlloc}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 shadow-2xs"
                 >
                   {submittingAlloc ? 'Saving...' : 'Save Allocation'}
                 </button>

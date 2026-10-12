@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { AppShell } from '@/components/layout/AppShell'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { AlertBanner, LoadingSpinner } from '@/components/ui/Feedback'
-import { fetchApi, ApiError } from '@/lib/api'
+import { fetchApi } from '@/lib/api'
 import { canClient } from '@/lib/auth-client'
-import { Receipt, Calendar, Tag, FileText, IndianRupee, Link as LinkIcon, DollarSign } from 'lucide-react'
+import { Receipt, Calendar, Tag, FileText, IndianRupee, Info } from 'lucide-react'
 
 interface MetaResponse {
   categories: { id: string; name: string; description: string | null }[]
@@ -122,6 +123,15 @@ export default function NewExpensePage() {
   return (
     <AppShell>
       <div className="max-w-2xl mx-auto space-y-6">
+        {/* Breadcrumbs Navigation */}
+        <Breadcrumbs
+          items={[
+            { label: 'Expenses Directory', href: '/expenses' },
+            { label: 'Record New Expense' },
+          ]}
+        />
+
+        {/* Page Title */}
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
             Record New Expense
@@ -129,6 +139,18 @@ export default function NewExpensePage() {
           <p className="text-xs text-slate-500 mt-1">
             Expenses initialize in DRAFT status and must be submitted with receipts for Core verification.
           </p>
+        </div>
+
+        {/* Guidance Notice */}
+        <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-950 flex items-start gap-3 shadow-2xs">
+          <Info className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <span className="font-bold">Next Steps & Receipt Compliance:</span>
+            <p className="text-emerald-900 leading-relaxed">
+              After creating this expense entry in DRAFT status, you will be prompted to attach digitized receipts
+              (JPEG, PNG, WebP, PDF up to 5MB) before submitting for ACM Core verification and approval.
+            </p>
+          </div>
         </div>
 
         {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
@@ -144,12 +166,13 @@ export default function NewExpensePage() {
             <input
               type="text"
               required
+              disabled={submitting}
               minLength={3}
               maxLength={100}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Hackathon Mentors Refreshments"
-              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
             />
           </div>
 
@@ -159,11 +182,12 @@ export default function NewExpensePage() {
             </label>
             <textarea
               rows={2}
+              disabled={submitting}
               maxLength={1000}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Provide itemized details or justification for this expenditure..."
-              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
             />
           </div>
 
@@ -179,13 +203,14 @@ export default function NewExpensePage() {
                 <input
                   type="text"
                   required
+                  disabled={submitting}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="1500.00"
-                  className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg pl-8 pr-3.5 py-2.5 font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  className="w-full text-xs sm:text-sm border border-slate-300 rounded-lg pl-8 pr-3.5 py-2.5 font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
                 />
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">Exact Decimal(12,2) with no float loss.</p>
+              <p className="text-[10px] text-slate-400 mt-1">Exact Decimal(12,2) with no float rounding loss.</p>
             </div>
 
             <div>
@@ -193,9 +218,10 @@ export default function NewExpensePage() {
                 Category *
               </label>
               <select
+                disabled={submitting}
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium text-slate-700"
+                className="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium text-slate-700 disabled:bg-slate-50 disabled:text-slate-500"
               >
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -214,9 +240,10 @@ export default function NewExpensePage() {
               <input
                 type="date"
                 required
+                disabled={submitting}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium text-slate-700"
+                className="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium text-slate-700 disabled:bg-slate-50 disabled:text-slate-500"
               />
               <p className="text-[10px] text-slate-400 mt-1">
                 Must fall within an active, unlocked academic semester.
@@ -228,9 +255,10 @@ export default function NewExpensePage() {
                 Linked Event (Optional)
               </label>
               <select
+                disabled={submitting}
                 value={eventId}
                 onChange={(e) => setEventId(e.target.value)}
-                className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium text-slate-700"
+                className="w-full text-xs sm:text-sm border border-slate-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium text-slate-700 disabled:bg-slate-50 disabled:text-slate-500"
               >
                 <option value="">General Club Expense (No Event)</option>
                 {events.map((ev) => (
@@ -245,8 +273,9 @@ export default function NewExpensePage() {
           <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
             <button
               type="button"
+              disabled={submitting}
               onClick={() => router.back()}
-              className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+              className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs disabled:opacity-50"
             >
               Cancel
             </button>

@@ -11,7 +11,8 @@ import {
   ConflictStatusBadge,
   RoleBadge,
 } from '@/components/ui/Badges'
-import { LoadingSpinner, EmptyState, AlertBanner, ModalDialog } from '@/components/ui/Feedback'
+import { LoadingSpinner, EmptyState, AlertBanner, ModalDialog, ConfirmDialog } from '@/components/ui/Feedback'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { fetchApi, ApiError } from '@/lib/api'
 import { canClient, canManageClubResource } from '@/lib/auth-client'
 import {
@@ -97,6 +98,10 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  // Confirmation Modals
+  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false)
+  const [verifyConfirmOpen, setVerifyConfirmOpen] = useState(false)
 
   // Modals
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
@@ -327,7 +332,14 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   return (
     <AppShell>
-      <div className="space-y-6 max-w-6xl mx-auto">
+      <div className="space-y-5 max-w-6xl mx-auto">
+        <Breadcrumbs
+          items={[
+            { label: 'Events Directory', href: '/events' },
+            { label: event.title },
+          ]}
+        />
+
         {/* Header & Status Card */}
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -358,7 +370,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
               {canSubmit && (
                 <button
-                  onClick={handleSubmitEvent}
+                  onClick={() => setSubmitConfirmOpen(true)}
                   disabled={actionLoading}
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
                 >
@@ -369,7 +381,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
               {canVerify && (
                 <button
-                  onClick={handleVerifyEvent}
+                  onClick={() => setVerifyConfirmOpen(true)}
                   disabled={actionLoading}
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
                 >
@@ -858,6 +870,34 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
         </ModalDialog>
+
+        {/* Submit Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={submitConfirmOpen}
+          title="Submit Event Proposal for Administrative Review"
+          message={`Are you sure you want to submit "${event.title}" for review? The event will enter the administrative verification queue and automated conflict checks will execute.`}
+          confirmLabel="Submit for Review"
+          isLoading={actionLoading}
+          onConfirm={async () => {
+            setSubmitConfirmOpen(false)
+            await handleSubmitEvent()
+          }}
+          onCancel={() => setSubmitConfirmOpen(false)}
+        />
+
+        {/* Verify Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={verifyConfirmOpen}
+          title="Verify and Schedule Event"
+          message={`Are you sure you want to verify and schedule "${event.title}"? This will confirm the venue reservation and publish the event to the campus master calendar.`}
+          confirmLabel="Verify & Schedule"
+          isLoading={actionLoading}
+          onConfirm={async () => {
+            setVerifyConfirmOpen(false)
+            await handleVerifyEvent()
+          }}
+          onCancel={() => setVerifyConfirmOpen(false)}
+        />
       </div>
     </AppShell>
   )

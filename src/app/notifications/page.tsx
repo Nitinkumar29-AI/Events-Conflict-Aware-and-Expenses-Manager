@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { AppShell } from '@/components/layout/AppShell'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { LoadingSpinner, EmptyState, AlertBanner } from '@/components/ui/Feedback'
 import {
   Bell,
@@ -31,6 +32,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [markingAll, setMarkingAll] = useState(false)
+  const [filterTab, setFilterTab] = useState<'ALL' | 'UNREAD'>('ALL')
 
   useEffect(() => {
     fetchNotifications()
@@ -105,19 +107,24 @@ export default function NotificationsPage() {
   }
 
   const unreadCount = notifications.filter((n) => !n.readAt).length
+  const displayedNotifications =
+    filterTab === 'UNREAD' ? notifications.filter((n) => !n.readAt) : notifications
 
   return (
     <AppShell>
       <div className="space-y-6 max-w-4xl mx-auto">
+        {/* Breadcrumbs Navigation */}
+        <Breadcrumbs items={[{ label: 'Notifications Center' }]} />
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                Notifications
+                Notifications Center
               </h1>
               {unreadCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200">
                   {unreadCount} unread
                 </span>
               )}
@@ -142,23 +149,55 @@ export default function NotificationsPage() {
 
         {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
 
+        {/* Quick Tabs */}
+        <div className="border-b border-slate-200">
+          <nav className="flex space-x-2" aria-label="Notification view tabs">
+            <button
+              type="button"
+              onClick={() => setFilterTab('ALL')}
+              className={`py-2 px-3.5 text-xs font-semibold rounded-t-lg transition-colors border-b-2 ${
+                filterTab === 'ALL'
+                  ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+              }`}
+            >
+              All Notifications ({notifications.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab('UNREAD')}
+              className={`py-2 px-3.5 text-xs font-semibold rounded-t-lg transition-colors border-b-2 ${
+                filterTab === 'UNREAD'
+                  ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+              }`}
+            >
+              Unread Only ({unreadCount})
+            </button>
+          </nav>
+        </div>
+
         {loading ? (
           <div className="py-20 flex justify-center">
             <LoadingSpinner size="lg" message="Loading alerts..." />
           </div>
-        ) : notifications.length === 0 ? (
+        ) : displayedNotifications.length === 0 ? (
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-2xs">
             <div className="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-3">
               <Bell className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-semibold text-slate-800">All caught up!</h3>
+            <h3 className="text-sm font-semibold text-slate-800">
+              {filterTab === 'UNREAD' ? 'No unread notifications' : 'All caught up!'}
+            </h3>
             <p className="text-xs text-slate-500 mt-1">
-              You have no pending notifications or alerts at this time.
+              {filterTab === 'UNREAD'
+                ? 'You have addressed all active alerts. Check the "All Notifications" tab to review history.'
+                : 'You have no notifications or alerts at this time.'}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {notifications.map((n) => {
+            {displayedNotifications.map((n) => {
               const isUnread = !n.readAt
               return (
                 <div

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { fetchApi } from '@/lib/api'
 import { LoadingSpinner, EmptyState, AlertBanner } from '@/components/ui/Feedback'
 import {
@@ -20,6 +21,7 @@ import {
   Users,
   ShieldAlert,
   Wallet,
+  Info,
 } from 'lucide-react'
 
 export default function ReportsPage() {
@@ -132,9 +134,14 @@ export default function ReportsPage() {
     }
   }
 
+  const exportType = activeTab === 'trends' ? 'events' : activeTab
+
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-7xl mx-auto">
+        {/* Breadcrumbs Navigation */}
+        <Breadcrumbs items={[{ label: 'Institutional Reports & Analytics' }]} />
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -152,65 +159,77 @@ export default function ReportsPage() {
             <button
               type="button"
               disabled={exporting}
-              onClick={() => handleExportCsv(activeTab === 'trends' ? 'events' : (activeTab as any))}
+              onClick={() => handleExportCsv(exportType as any)}
               className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors shadow-xs"
+              title={`Export ${exportType.toUpperCase()} dataset as audit-compliant CSV`}
             >
               <Download className="w-4 h-4" />
-              <span>{exporting ? 'Exporting...' : `Export ${activeTab.toUpperCase()} CSV`}</span>
+              <span>{exporting ? 'Exporting...' : `Export ${exportType.toUpperCase()} CSV`}</span>
             </button>
+          </div>
+        </div>
+
+        {/* Audit & Compliance Export Notice */}
+        <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs text-indigo-950 flex items-start gap-2.5 shadow-2xs">
+          <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="font-semibold text-indigo-900">Compliance & Audit Data Exports:</span>
+            <p className="text-indigo-900 leading-relaxed">
+              CSV downloads compile verified ledger entries, exact timestamps, and reviewer audit trails suitable for faculty oversight and internal financial review.
+            </p>
           </div>
         </div>
 
         {/* Tabs & Semester Selector */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 gap-4">
-          <div className="flex gap-6">
+          <div className="flex gap-6 overflow-x-auto pb-px">
             <button
               type="button"
               onClick={() => setActiveTab('events')}
-              className={`pb-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+              className={`pb-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
                 activeTab === 'events'
                   ? 'border-indigo-600 text-indigo-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <Calendar className="w-4 h-4" />
-              Events Report
+              <span>Events Report</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('conflicts')}
-              className={`pb-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+              className={`pb-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
                 activeTab === 'conflicts'
                   ? 'border-indigo-600 text-indigo-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <AlertTriangle className="w-4 h-4" />
-              Conflict Report
+              <span>Conflict Report</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('financial')}
-              className={`pb-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+              className={`pb-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
                 activeTab === 'financial'
                   ? 'border-indigo-600 text-indigo-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <Receipt className="w-4 h-4" />
-              Financial Report
+              <span>Financial Report</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('trends')}
-              className={`pb-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-colors ${
+              className={`pb-3 text-xs font-semibold border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
                 activeTab === 'trends'
                   ? 'border-indigo-600 text-indigo-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <TrendingUp className="w-4 h-4" />
-              Monthly Trends
+              <span>Monthly Trends</span>
             </button>
           </div>
 

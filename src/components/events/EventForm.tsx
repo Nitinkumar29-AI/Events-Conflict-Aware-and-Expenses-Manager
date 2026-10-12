@@ -322,10 +322,15 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
 
       {/* 2. Schedule Timing */}
       <div className="space-y-4 pt-4 border-t border-slate-100">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-indigo-600" />
-          Schedule Timing (IST)
-        </h3>
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+            <Clock className="w-4 h-4 text-indigo-600" />
+            Schedule Timing (Indian Standard Time - IST)
+          </h3>
+          <p className="text-[11px] text-slate-500 mt-1">
+            Times are evaluated in IST (UTC+05:30). The conflict engine applies an automatic 30-minute turnaround buffer before and after this window.
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -335,9 +340,10 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
             <input
               type="datetime-local"
               required
+              disabled={submitting}
               value={startAt}
               onChange={(e) => setStartAt(e.target.value)}
-              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:bg-slate-50"
             />
             {fieldErrors.startAt && (
               <p className="text-xs text-rose-600 mt-1 font-medium">{fieldErrors.startAt}</p>
@@ -351,9 +357,10 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
             <input
               type="datetime-local"
               required
+              disabled={submitting}
               value={endAt}
               onChange={(e) => setEndAt(e.target.value)}
-              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:bg-slate-50"
             />
             {fieldErrors.endAt && (
               <p className="text-xs text-rose-600 mt-1 font-medium">{fieldErrors.endAt}</p>
