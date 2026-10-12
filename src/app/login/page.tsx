@@ -14,10 +14,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [isDemoAllowed, setIsDemoAllowed] = useState(true)
 
   useEffect(() => {
     if (status === 'authenticated') {
       router.replace('/dashboard')
+    }
+
+    // Safety guard: if running in production on a remote domain without explicit opt-in, hide demo accounts
+    if (
+      process.env.NODE_ENV === 'production' &&
+      typeof window !== 'undefined' &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1' &&
+      process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN !== 'true'
+    ) {
+      setIsDemoAllowed(false)
     }
   }, [status, router])
 
@@ -141,34 +153,36 @@ export default function LoginPage() {
           </form>
 
           {/* Quick Demo Access Bar */}
-          <div className="mt-6 pt-6 border-t border-slate-100">
-            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2.5">
-              Testing & Demo Access (Click to Select)
+          {isDemoAllowed && (
+            <div className="mt-6 pt-6 border-t border-slate-100">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2.5">
+                Testing & Demo Access (Click to Select)
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                {demoAccounts.map((acc) => (
+                  <button
+                    key={acc.email}
+                    type="button"
+                    onClick={() => fillDemo(acc.email)}
+                    className={`text-left p-2.5 rounded-lg border transition-all hover:border-indigo-300 hover:bg-indigo-50/50 ${
+                      email === acc.email
+                        ? 'border-indigo-500 bg-indigo-50/70'
+                        : 'border-slate-200 bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-xs text-slate-800">{acc.label}</span>
+                      <RoleBadge role={acc.role} />
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-mono truncate">{acc.email}</div>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-3 text-[11px] text-slate-400 text-center font-mono">
+                Demo Password: DemoPassword123!
+              </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              {demoAccounts.map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => fillDemo(acc.email)}
-                  className={`text-left p-2.5 rounded-lg border transition-all hover:border-indigo-300 hover:bg-indigo-50/50 ${
-                    email === acc.email
-                      ? 'border-indigo-500 bg-indigo-50/70'
-                      : 'border-slate-200 bg-slate-50/50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-xs text-slate-800">{acc.label}</span>
-                    <RoleBadge role={acc.role} />
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-mono truncate">{acc.email}</div>
-                </button>
-              ))}
-            </div>
-            <p className="mt-3 text-[11px] text-slate-400 text-center font-mono">
-              Demo Password: DemoPassword123!
-            </p>
-          </div>
+          )}
         </div>
       </div>
     </div>

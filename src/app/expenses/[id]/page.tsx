@@ -470,7 +470,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                 Proof of Expense (Receipts)
               </h3>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Maximum 5MB • Formats: JPEG, PNG, WebP, PDF • Deduplication via client-side SHA-256
+                Maximum 5MB • Formats: JPEG, PNG, WebP, PDF • Deduplication via client-reported SHA-256
               </p>
             </div>
 
@@ -497,7 +497,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                     <th className="py-2.5 px-3">File Name</th>
                     <th className="py-2.5 px-3">Format</th>
                     <th className="py-2.5 px-3">Size</th>
-                    <th className="py-2.5 px-3">SHA-256 Fingerprint</th>
+                    <th className="py-2.5 px-3">Client SHA-256 Digest</th>
                     <th className="py-2.5 px-3 text-right">View</th>
                   </tr>
                 </thead>
