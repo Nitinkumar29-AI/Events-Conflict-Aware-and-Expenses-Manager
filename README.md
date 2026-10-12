@@ -223,17 +223,30 @@ The conflict engine (Phase 4) expands these into `(year, branch)` cell pairs and
 
 ## Seed Summary
 
-The seed creates:
+The idempotent seed creates a clean, minimal demo dataset tailored for evaluation and live demonstration:
 
-- **5 Clubs**: ACM Student Chapter, Coding Club, Robotics Club, GDSC, Entrepreneurship Cell
-- **8 Users**: 1 SUPER_ADMIN, 1 ACM_CORE, 1 ACM_EXEC, 4 CLUB_REPs (Coding, Robotics, GDSC, E-Cell), 1 VIEWER
+- **5 Clubs**: ACM Student Chapter (`ACM`), Coding Club (`CC`), Robotics Club (`RC`), GDSC (`GDSC`), Entrepreneurship Cell (`ECELL`)
+- **8 Users**: 1 SUPER_ADMIN, 1 ACM_CORE, 1 ACM_EXEC, 4 CLUB_REPs (Coding, Robotics, GDSC, E-Cell), 1 VIEWER (Password: `DemoPassword123!`)
 - **7 Venues**: LT-1, LT-2, Seminar Hall, Main Auditorium, CS-LAB-1, CS-LAB-2, Open Air Amphitheater
-- **2 Semesters**: Even Semester 2025-26 (locked), Odd Semester 2026-27 (active, ₹50,000 budget)
+- **2 Semesters**: Even Semester 2025-26 (locked for archive demo), Odd Semester 2026-27 (active, ₹50,000 budget envelope)
 - **8 Expense Categories**: Logistics, Refreshments, Marketing & Printing, Equipment & Supplies, Travel & Accommodation, Honorarium & Prizes, Venue & Infrastructure, Miscellaneous
-- **8 Budget Allocations**: Full ₹50,000 distributed across categories for the current semester
-- **17+ Events**: Historical + current, across all clubs and event types
-- **28+ Expenses**: Across both semesters with varying statuses (APPROVED, PENDING, REJECTED)
-- **5 Audit Logs**: Seed samples including semester lock, event submit, event verify, budget allocate
+- **8 Budget Allocations**: Full ₹50,000 distributed across categories for Odd Semester 2026-27
+- **6 Demo Events (EXACTLY 6)**:
+  1. *Coding Club Technical Hackathon 2026* (`CC`, LT-1, Nov 15 4:00 PM–8:00 PM IST, `VERIFIED`, rep.coding) — **Conflict Event A**
+  2. *ACM Technical Workshop on DSA* (`ACM`, LT-1, Nov 15 5:00 PM–7:00 PM IST, `SUBMITTED`, exec) — **Conflict Event B (Overlaps Event 1)**
+  3. *Robotics Club Annual Hardware Exhibition* (`RC`, Seminar Hall, Nov 20 10:00 AM–1:00 PM IST, `VERIFIED`, rep.robotics)
+  4. *GDSC Cloud & DevOps Study Jam* (`GDSC`, LT-2, Nov 22 2:00 PM–4:00 PM IST, `VERIFIED`, rep.gdsc)
+  5. *E-Cell Campus Startup Pitch 2026* (`ECELL`, Main Auditorium, Nov 25 11:00 AM–3:00 PM IST, `SUBMITTED`, rep.ecell)
+  6. *Coding Club CodeSprint Hack Meetup* (`CC`, CS-LAB-1, Nov 28 2:00 PM–4:00 PM IST, `DRAFT`, rep.coding) — **Creator-Only Edit Demo**
+- **5 Demo Expenses (EXACTLY 5)**:
+  1. *Hackathon Refreshments & Snacks* (`DRAFT`, ₹4,500.00, Refreshments, `CC`, rep.coding, linked to Event 1) — **Creator-Only Edit Demo**
+  2. *DSA Workshop Kit & Materials* (`SUBMITTED`, ₹3,200.00, Logistics, `ACM`, exec, linked to Event 2) — **Pending Review Queue**
+  3. *Robotics Hardware Sensors & Microcontrollers* (`APPROVED`, ₹6,500.00, Equipment, `RC`, rep.robotics, reviewed by core, linked to Event 3) — **Budget Deduction + PDF Receipt**
+  4. *Cloud Jam Promotional Banners & Digital Badges* (`APPROVED`, ₹2,400.00, Marketing, `GDSC`, rep.gdsc, reviewed by core, linked to Event 4) — **Budget Deduction + Image Receipt**
+  5. *External Mentor Travel Reimbursement* (`REJECTED`, ₹4,800.00, Travel, `ECELL`, rep.ecell, reviewed by core with rejection reason, linked to Event 5) — **Rejection Workflow**
+- **1 Intentional Conflict Pair**: Event 1 & Event 2 overlapping in LT-1 on Nov 15 with overlapping 2nd-year CSE/IT audience (yielding VENUE & AUDIENCE conflict records)
+- **2 Receipts**: Attached to approved expenses with SHA-256 digests
+- **7 Sample Audit Logs**: Illustrating semester locks, budget allocations, event lifecycle, and expense approvals/rejections
 
 ### Demo Conflict Scenario
 
@@ -741,13 +754,14 @@ Follow this sequence for an end-to-end presentation demonstrating role-based acc
    - Click the **"Coding Club Rep"** quick-select button (`rep.coding@acm-demo.college.edu`).
    - Sign in to reach `/dashboard`. Note the role-specific view: "My Event Submissions" priority queue, active clashes, upcoming schedule in Indian Standard Time (IST, UTC+05:30), and unread notifications feed.
 
-2. **Step 2: Event Proposal Submission (1 min)**
-   - Click **"+ Event"** or navigate to `/events/new`.
-   - Fill title (e.g. `ACM Web3 Hackathon`), select venue `Lecture Theatre 1 (LT-1)`, select dates within the active semester, and target years `[2, 3]`.
-   - Submit form. Note the event initializes safely in `DRAFT` status.
-   - On `/events/[id]`, review the details and click **"Submit for Review"** via the confirmation dialog. Event transitions to `SUBMITTED`.
+2. **Step 2: Event Proposal & Creator-Only Editing (1.5 min)**
+   - Open seeded draft event: navigate to `/events` and select *Coding Club CodeSprint Hack Meetup* (`DRAFT`).
+   - Notice that as `rep.coding@acm-demo.college.edu` (the creator), the **"Edit Event"** action is accessible.
+   - **Creator-Only Editing Demo**: If you sign in as `rep.robotics@acm-demo.college.edu` or another user, the edit action is hidden in the UI and blocked with HTTP 403 by the backend policy (`assertCanEditEvent`). Only the event's creator (or SUPER_ADMIN / ACM_CORE) can modify drafts!
+   - On `/events/[id]`, review the details and click **"Submit for Review"** via the confirmation dialog. Event transitions safely to `SUBMITTED`.
 
 3. **Step 3: Scheduling Conflict Detection (1 min)**
+   - Open the seeded conflict pair: *Coding Club Technical Hackathon 2026* (`VERIFIED`) and *ACM Technical Workshop on DSA* (`SUBMITTED`).
    - On the event detail page, click **"Detect Conflicts"**.
    - The engine evaluates overlapping candidate bookings within ±30 minutes across venues and audience cohorts, calculating Jaccard audience overlap and venue proximity.
    - Note the detected clashes in the inline table with severity badges and composite conflict scores (0–100 scale).
@@ -761,10 +775,12 @@ Follow this sequence for an end-to-end presentation demonstrating role-based acc
    - **Crucial Rule Highlight**: Demonstrate that the conflict engine **never** auto-cancels or modifies events without human verification.
    - Navigate back to `/events/[id]` and click **"Verify Event"** to schedule it on the campus master calendar.
 
-5. **Step 5: Expense Ledger & Client-Hashed Receipts (1 min)**
+5. **Step 5: Expense Ledger & Creator-Only Expenses (1 min)**
    - Sign in as `rep.coding@acm-demo.college.edu`.
-   - Navigate to `/expenses/new`. Enter title (e.g. `Hackathon Refreshments`), exact decimal amount `₹4500.00`, category `Logistics`.
-   - On `/expenses/[id]`, review the `DRAFT` lifecycle banner.
+   - Navigate to `/expenses` and open seeded draft expense *Hackathon Refreshments & Snacks* (`DRAFT`, ₹4,500.00).
+   - Note the creator edit button is visible. Cross-user editing is blocked for non-creators.
+   - Review attached receipt proofs on approved expenses (*Robotics Hardware Sensors & Microcontrollers*).
+   - On `/expenses/[id]`, click **"Submit for Approval"** via `<ConfirmDialog>`.
    - Upload a test receipt (PNG/PDF < 5MB). Observe the client-side computed SHA-256 digest in the receipts table.
    - Click **"Submit for Approval"** via `<ConfirmDialog>`.
 

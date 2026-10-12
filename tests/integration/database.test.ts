@@ -245,14 +245,14 @@ describe('Phase 1 Database Integration', () => {
       expect(count).toBe(8)
     })
 
-    it('seeded at least 15 events', async () => {
+    it('seeded at least 6 events', async () => {
       const count = await prisma.event.count()
-      expect(count).toBeGreaterThanOrEqual(15)
+      expect(count).toBeGreaterThanOrEqual(6)
     })
 
-    it('seeded at least 25 expenses', async () => {
+    it('seeded at least 5 expenses', async () => {
       const count = await prisma.expense.count()
-      expect(count).toBeGreaterThanOrEqual(25)
+      expect(count).toBeGreaterThanOrEqual(5)
     })
 
     it('previous semester is locked', async () => {
