@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { AppShell } from '@/components/layout/AppShell'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { EventStatusBadge } from '@/components/ui/Badges'
 import { LoadingSpinner, EmptyState, AlertBanner } from '@/components/ui/Feedback'
 import { fetchApi } from '@/lib/api'
@@ -93,7 +94,10 @@ function EventsContent() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Breadcrumbs Navigation */}
+      <Breadcrumbs items={[{ label: 'Events Directory' }]} />
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

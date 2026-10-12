@@ -16,7 +16,6 @@ import {
   PlusCircle,
   X,
   Shield,
-  Layers,
   Wallet,
 } from 'lucide-react'
 
@@ -44,7 +43,7 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
 type NavItem = {
   name: string
   href: string
-  icon: any
+  icon: React.ComponentType<{ className?: string }>
   show: boolean
   badge?: string
   count?: number

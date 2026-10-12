@@ -6,9 +6,6 @@ import {
   AlertTriangle,
   Ban,
   Check,
-  Shield,
-  ShieldAlert,
-  User,
   Sparkles,
 } from 'lucide-react'
 

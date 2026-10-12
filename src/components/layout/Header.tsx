@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { signOut, useSession } from 'next-auth/react'
-import { LogOut, User, Menu, Building } from 'lucide-react'
+import { LogOut, User, Menu } from 'lucide-react'
 import { RoleBadge } from '@/components/ui/Badges'
 
 interface HeaderProps {
@@ -39,9 +39,12 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
       <div className="flex items-center gap-3 sm:gap-4">
         {user ? (
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2.5 text-xs text-slate-700">
+            <div className="flex items-center gap-2 text-xs text-slate-700">
               <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs shadow-2xs">
                 {user.name ? user.name[0]?.toUpperCase() : <User className="w-4 h-4" />}
+              </div>
+              <div className="sm:hidden">
+                <RoleBadge role={user.role} />
               </div>
               <div className="hidden sm:block text-right">
                 <div className="font-semibold text-xs text-slate-900 flex items-center gap-1.5 justify-end">

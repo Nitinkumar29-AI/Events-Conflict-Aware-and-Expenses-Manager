@@ -714,9 +714,115 @@ docker compose exec app npx prisma migrate deploy
 
 - **Login Page Runtime Error / Hydration Mismatch**: If you encounter a Next.js hydration mismatch pointing to `<Shield />` or `data-darkreader-mode`, this is caused by the Dark Reader browser extension modifying the DOM. Disable Dark Reader on `localhost` to resolve it.
 - **Missing AUTH_SECRET in Production**: In production mode (`NODE_ENV=production`), `AUTH_SECRET` must be set with at least 32 characters. Run `openssl rand -base64 32` to generate a strong secret.
+- **Database Connection Refused (`ECONNREFUSED 5432`)**: Ensure your PostgreSQL service is running (`pg_isready` or check Windows Services). Verify `DATABASE_URL` credentials in `.env`.
+- **Demo Buttons Missing on Login**: In production environments (`NODE_ENV=production`) on non-localhost domains, demo login buttons are hidden by default for security. Set `NEXT_PUBLIC_ENABLE_DEMO_LOGIN=true` if explicitly testing in a remote staging container.
+- **Port 3000 Already in Use**: Run `npx kill-port 3000` or specify an alternate port: `npm run dev -- -p 3001`.
+- **Safe Database Migrations in Staging / Production**: Never run `prisma migrate reset` in persistent environments. Always use `npm run db:migrate:prod` (`npx prisma migrate deploy`).
 
- # # #   T r o u b l e s h o o t i n g 
- 
- -   * * L o g i n   P a g e   R u n t i m e   E r r o r   /   H y d r a t i o n   M i s m a t c h * * :   I f   y o u   e n c o u n t e r   a   N e x t . j s   h y d r a t i o n   m i s m a t c h   p o i n t i n g   t o   < S h i e l d   / >   o r   d a t a - d a r k r e a d e r - m o d e ,   t h i s   i s   c a u s e d   b y   t h e   D a r k   R e a d e r   b r o w s e r   e x t e n s i o n   m o d i f y i n g   t h e   D O M .   D i s a b l e   D a r k   R e a d e r   o n   l o c a l h o s t   t o   r e s o l v e   i t . 
- 
- 
+---
+
+## Phase 12 — Demo Readiness, Verification & Release Package
+
+This section provides operational instructions, account checklists, and demonstration scripts for judges, faculty, and presentation teams.
+
+### 1. Demonstration Sequence (5–8 Minutes)
+
+Follow this sequence for an end-to-end presentation demonstrating role-based access, scheduling conflict prevention, financial precision, and institutional auditability:
+
+```
+[1. Login & Dashboard] ──> [2. Proposal & Review] ──> [3. Conflict Engine] ──> [4. Human Adjudication]
+          │                                                                                 │
+          ▼                                                                                 ▼
+[8. Audit & CSV Exports] <── [7. Notifications] <── [6. Budget Limits] <── [5. Expense & Receipt]
+```
+
+1. **Step 1: Role-Aware Login & Operational Hub (1 min)**
+   - Navigate to `/login`.
+   - Click the **"Coding Club Rep"** quick-select button (`rep.coding@acm-demo.college.edu`).
+   - Sign in to reach `/dashboard`. Note the role-specific view: "My Event Submissions" priority queue, active clashes, upcoming schedule in Indian Standard Time (IST, UTC+05:30), and unread notifications feed.
+
+2. **Step 2: Event Proposal Submission (1 min)**
+   - Click **"+ Event"** or navigate to `/events/new`.
+   - Fill title (e.g. `ACM Web3 Hackathon`), select venue `Lecture Theatre 1 (LT-1)`, select dates within the active semester, and target years `[2, 3]`.
+   - Submit form. Note the event initializes safely in `DRAFT` status.
+   - On `/events/[id]`, review the details and click **"Submit for Review"** via the confirmation dialog. Event transitions to `SUBMITTED`.
+
+3. **Step 3: Scheduling Conflict Detection (1 min)**
+   - On the event detail page, click **"Detect Conflicts"**.
+   - The engine evaluates overlapping candidate bookings within ±30 minutes across venues and audience cohorts, calculating Jaccard audience overlap and venue proximity.
+   - Note the detected clashes in the inline table with severity badges and composite conflict scores (0–100 scale).
+
+4. **Step 4: Human Conflict Adjudication & Non-Destructive Resolution (1.5 min)**
+   - Sign out and sign in as **"ACM Core Lead"** (`core@acm-demo.college.edu`).
+   - Navigate to `/conflicts`. Filter by `OPEN` and `HIGH`.
+   - Inspect the **How Scoring Works** guide explaining the weighted formula.
+   - Review Event A vs Event B side-by-side.
+   - Click **"Acknowledge"** or **"Resolve"** (provide resolution note: *"Rescheduled slot with consent"*).
+   - **Crucial Rule Highlight**: Demonstrate that the conflict engine **never** auto-cancels or modifies events without human verification.
+   - Navigate back to `/events/[id]` and click **"Verify Event"** to schedule it on the campus master calendar.
+
+5. **Step 5: Expense Ledger & Client-Hashed Receipts (1 min)**
+   - Sign in as `rep.coding@acm-demo.college.edu`.
+   - Navigate to `/expenses/new`. Enter title (e.g. `Hackathon Refreshments`), exact decimal amount `₹4500.00`, category `Logistics`.
+   - On `/expenses/[id]`, review the `DRAFT` lifecycle banner.
+   - Upload a test receipt (PNG/PDF < 5MB). Observe the client-side computed SHA-256 digest in the receipts table.
+   - Click **"Submit for Approval"** via `<ConfirmDialog>`.
+
+6. **Step 6: Semester Budget Caps & Core Approval (1 min)**
+   - Sign in as `core@acm-demo.college.edu`.
+   - Open `/expenses/[id]` and click **"Approve Expense"**.
+   - Navigate to `/budgets`. Review the active semester's Total Envelope, Total Allocated, Spent run-rate, and remaining category balances. Note that locked semesters prevent all budget alterations.
+
+7. **Step 7: Notifications & Historical Intelligence (1 min)**
+   - Navigate to `/notifications`. Switch between **"All Notifications"** and **"Unread Only"** tabs. Click **"Mark all as read"**.
+   - Navigate to `/archive`. Search historical events, filter past vs upcoming, and inspect the immutable **Audit Logs** tab.
+   - Navigate to `/reports`. Review category utilization and click **"Export EVENTS CSV"** or **"Export FINANCIAL CSV"**. Note that generated files include OWASP spreadsheet formula injection defenses (`'`, `""`).
+
+---
+
+### 2. Demo Preparation Checklist
+
+Before presenting, complete these setup steps:
+
+- [ ] **Environment Configuration**:
+  Ensure `.env` contains:
+  ```env
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/acm_incursion?schema=public"
+  AUTH_SECRET="your-development-auth-secret-min-32-chars-long"
+  NODE_ENV="development"
+  NEXT_PUBLIC_APP_URL="http://localhost:3000"
+  ```
+- [ ] **Database Migration Status**:
+  Run `npx prisma migrate status` to confirm all 7 migrations are applied.
+- [ ] **Deterministic Seed Preparation**:
+  Run `npm run db:seed` to ensure sample clubs, venues, users, semesters, and conflict pairs are loaded.
+- [ ] **Application Startup**:
+  Run `npm run dev` (or `npm run build && npm run start`).
+- [ ] **Browser Verification**:
+  Open `http://localhost:3000/login` in an incognito window. Verify quick demo account buttons appear.
+
+---
+
+### 3. Pre-Demo Smoke-Test Checklist
+
+Run these 6 fast smoke tests 5 minutes before presentation:
+
+1. **Auth Smoke Test**: Click "Super Admin" demo button on `/login` and verify successful redirection to `/dashboard`.
+2. **Calendar Smoke Test**: Open `/calendar` and verify FullCalendar loads with color-coded events.
+3. **Events Smoke Test**: Open `/events` and click the quick status tabs (`All`, `Pending Review`, `Verified`).
+4. **Conflicts Smoke Test**: Open `/conflicts` and verify the score guide accordion toggles.
+5. **Budgets Smoke Test**: Open `/budgets` and confirm KPI summary cards display active rupee values.
+6. **Health Probe Smoke Test**: Run `curl -i http://localhost:3000/api/health` and verify HTTP 200 `{"status":"UP"}`.
+
+---
+
+### 4. Known Limitations & Non-Defects
+
+1. **Receipt Binary Storage in Local Development**:
+   In local development without production Cloudinary keys, receipts use mock public URLs (`https://storage.mock.local/receipts/...`) while maintaining client SHA-256 calculation and PostgreSQL metadata persistence.
+2. **Read-Only Viewer Capabilities**:
+   Users with role `VIEWER` are intentionally restricted from expenses, budgets, conflicts, and creation forms. Attempting to navigate directly redirects to dashboard with an informational banner.
+3. **Factual Institutional Archive Reporting**:
+   In `/archive`, actual post-event attendance is transparently indicated as *"Not recorded in database"* because the database records planned attendees rather than manual barcode turnstile scans.
+4. **Locked Semester Immutability**:
+   Expenses and budgets in locked semesters cannot be edited, submitted, or approved. This is an intentional financial governance rule, not an application defect.

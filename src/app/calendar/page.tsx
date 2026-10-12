@@ -7,6 +7,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import { AppShell } from '@/components/layout/AppShell'
+import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { AlertBanner, LoadingSpinner } from '@/components/ui/Feedback'
 import { fetchApi } from '@/lib/api'
 import { Calendar as CalendarIcon, Info, Sparkles } from 'lucide-react'
@@ -95,6 +96,9 @@ export default function CalendarPage() {
   return (
     <AppShell>
       <div className="space-y-6 max-w-7xl mx-auto">
+        {/* Breadcrumbs Navigation */}
+        <Breadcrumbs items={[{ label: 'Institutional Calendar' }]} />
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">

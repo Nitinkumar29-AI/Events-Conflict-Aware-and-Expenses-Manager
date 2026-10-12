@@ -6,13 +6,7 @@ import { useSession } from 'next-auth/react'
 import { fetchApi, ApiError } from '@/lib/api'
 import { AlertBanner, LoadingSpinner } from '@/components/ui/Feedback'
 import {
-  Calendar,
   Users,
-  Building,
-  MapPin,
-  Tag,
-  Check,
-  AlertCircle,
   FileText,
   Clock,
 } from 'lucide-react'
