@@ -83,7 +83,7 @@ Access is governed by a strict Role-Based Access Control (RBAC) matrix paired wi
 
 ---
 
-## 6. Setup Guide (New Laptop Installation)
+## 6. Setup Guide:
 
 Follow these steps to configure and run the project locally on a fresh machine.
 
