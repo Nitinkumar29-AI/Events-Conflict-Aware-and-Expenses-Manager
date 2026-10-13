@@ -17,8 +17,14 @@ export async function PATCH(
 
     return NextResponse.json(notification)
   } catch (error: any) {
+    if (error.name === 'UnauthorizedError') {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
     if (error.name === 'NotFoundError') {
       return NextResponse.json({ error: error.message }, { status: 404 })
+    }
+    if (error.name === 'ForbiddenError') {
+      return NextResponse.json({ error: error.message }, { status: 403 })
     }
     console.error('Failed to mark notification as read:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })

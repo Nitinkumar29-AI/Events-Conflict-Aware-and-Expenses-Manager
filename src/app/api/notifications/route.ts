@@ -13,12 +13,15 @@ export async function GET(request: Request) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20', 10)))
 
-    const notifications = await notificationService.getUserNotifications(user, page, limit)
+    const result = await notificationService.getUserNotifications(user, page, limit)
     return NextResponse.json({
-      data: notifications,
-      meta: { page, limit },
+      data: result.items,
+      meta: { page, limit, total: result.total, pages: result.pages },
     })
   } catch (error: any) {
+    if (error.name === 'UnauthorizedError') {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
     console.error('Failed to get notifications:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
@@ -35,6 +38,9 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
+    if (error.name === 'UnauthorizedError') {
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
     console.error('Failed to mark all notifications as read:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

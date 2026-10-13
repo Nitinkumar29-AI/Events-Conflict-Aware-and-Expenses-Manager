@@ -41,10 +41,13 @@ export default function NotificationsPage() {
   const fetchNotifications = async () => {
     try {
       const res = await fetch('/api/notifications')
-      const data = await res.json()
-      if (data.data) {
-        setNotifications(data.data)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as any).error || `Request failed: ${res.status}`)
       }
+      const data = await res.json()
+      // data.data is now the flat notifications array; guard against unexpected shapes
+      setNotifications(Array.isArray(data.data) ? data.data : [])
     } catch (err: any) {
       setError(err.message || 'Failed to fetch notifications')
     } finally {
