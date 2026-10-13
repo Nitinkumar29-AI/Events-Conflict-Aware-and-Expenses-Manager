@@ -1,844 +1,329 @@
-# ACM Incursion — Conflict-Aware Events and Expenses Manager
+# Conflict-Aware Events and Expenses Manager
 
-A centralized institutional management system for ACM campus events, scheduling conflicts, expenses, budgets, receipts, audit history, and institutional memory.
-
----
-
-## Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 16 (App Router, TypeScript) |
-| Styling | Tailwind CSS v4 |
-| Database | PostgreSQL |
-| ORM | Prisma 6 |
-| Validation | Zod |
-| Testing | Vitest |
-| Money | `decimal.js` / Prisma `Decimal` |
+A centralized campus coordination and financial governance platform built for university student clubs and ACM organizing committees. It streamlines event proposals, identifies venue and audience schedule clashes, enforces creator-only editing policies, tracks itemized expenses and receipts, manages semester budgets, and maintains an immutable institutional archive.
 
 ---
 
-## Architecture
+## 1. Problem & Solution Overview
+
+Campus event planning frequently suffers from fragmented communication between student clubs and central committees:
+- **Scheduling Clashes**: Multiple clubs book the same physical venues at identical times or organize competing workshops targeting the same student cohorts.
+- **Disorganized Review**: Event proposals, venue bookings, and executive approvals lack a single verifiable workflow.
+- **Financial Ambiguity**: Event expenses, paper receipts, and club budget caps are difficult to audit and track against allocated semester funds.
+
+**Conflict-Aware Events and Expenses Manager** unifies these operations into a single role-governed portal. Club representatives submit event proposals and itemized expense claims. The backend scheduling engine detects potential conflicts across venues, turnaround buffers, and audience demographics, flagging them for human review by ACM Core. Once approved, expenses are deducted in real time from semester budget lines using exact decimal arithmetic.
+
+---
+
+## 2. End-to-End System Workflow
 
 ```
-src/
-  app/
-    api/                  # Route handlers (auth → validate → authorize → service → respond)
-  server/
-    services/             # Business logic (Phase 3+)
-    repositories/         # Prisma queries (Phase 3+)
-    policies/             # RBAC authorization predicates (Phase 2+)
-    validators/           # Zod schemas (Phase 2+)
-    lib/
-      prisma.ts           # Prisma singleton client
-      api-response.ts     # Uniform JSON response helpers
-      errors.ts           # Domain error classes
-      timezone.ts         # UTC/IST utilities + overlap formula
-    types/
-      index.ts            # Shared TypeScript types
-
-prisma/
-  schema.prisma           # Complete database schema
-  seed.ts                 # Deterministic demo seed
-
-tests/
-  unit/                   # Pure logic tests (no DB)
-  integration/            # DB integration tests
+[Club Representative]              [Conflict Engine]                 [ACM Core / Admin]
+        │                                  │                                  │
+  1. Create Event (Draft)                  │                                  │
+  2. Edit (Creator-Only)                   │                                  │
+  3. Submit Proposal ─────────────────────>│ 4. Evaluate Venue, Time &       │
+                                           │    Audience Overlap (Jaccard)    │
+                                           │    Flags Clashes (Non-Destructive)│
+                                           └─────────────────────────────────>│ 5. Review & Adjudicate
+                                                                              │    (Verify / Reject / Resolve)
+  6. Submit Expense & Receipt ───────────────────────────────────────────────>│ 7. Review & Approve
+        │                                                                     │    (Deducts from Budget)
+        ▼                                                                     ▼
+[Calendar Published] ◄───────────────────────────────────────────── [Audit Logs & Reports]
 ```
 
+1. **Event Proposal**: A club representative creates an event proposal in `DRAFT` status and submits it for review.
+2. **Conflict Detection**: The system evaluates candidate events within temporal proximity. It calculates venue overlaps, turnaround buffer gaps (< 30 min), and audience demographic similarity via Jaccard index.
+3. **Human Adjudication**: Conflicts are **never automatically cancelled or rescheduled**. The system flags them with composite severity scores (`0–100`) for ACM Core to acknowledge, resolve, or override.
+4. **Expense Submission**: Permitted users submit expenses and upload receipt proofs. Client-side SHA-256 hashing prevents duplicate receipt uploads.
+5. **Financial Review**: ACM Core approves or rejects expenses. Approved expenses update category utilization against the semester's budget envelope using exact Decimal arithmetic.
+6. **Institutional Memory**: All status transitions generate immutable audit logs. Semesters can be locked against modifications, and audit-ready CSV reports are exportable with formula injection defenses.
+
 ---
 
-## Database Entities
+## 3. Core Capabilities
 
-| Model | Purpose |
+- **Event Lifecycle & Master Calendar**: Full state machine (`DRAFT` → `SUBMITTED` → `VERIFIED` / `REJECTED` / `CANCELLED`) with interactive FullCalendar views.
+- **Conflict Detection Engine**: Detects `VENUE`, `AUDIENCE`, `ORGANIZER`, and `TIGHT_TURNAROUND` clashes using end-exclusive UTC interval math and Jaccard audience cell matching.
+- **Creator-Only Editing & Anti-Spoofing**: Only the original creator of a draft/submitted record may edit it. Administrative review actions are strictly segregated from authoring permissions. Session identity is derived exclusively from authenticated tokens.
+- **Expense & Receipt Management**: Exact decimal currency handling (`DECIMAL(12, 2)`), client SHA-256 receipt deduplication, and locked-semester tampering protection.
+- **Budget Tracking**: Category-level allocations, real-time expenditure run-rates, and deficit warnings.
+- **Institutional Archive & Reports**: Historical event queries, immutable audit log explorer, and CSV report downloads sanitized against spreadsheet formula injection.
+
+---
+
+## 4. Roles & Accountability
+
+Access is governed by a strict Role-Based Access Control (RBAC) matrix paired with multi-tenant club ownership boundaries:
+
+| Role | Responsibilities & Permissions |
 |---|---|
-| `User` | System users with role-based access |
-| `Club` | Campus clubs (including ACM itself) |
-| `Venue` | Event venues with turnaround buffer |
-| `Semester` | Financial + historical boundary; lockable |
-| `Event` | Event proposals with structured audience |
-| `EventReview` | ACM Core verify/reject decisions |
-| `ConflictRecord` | Detected scheduling conflicts (NEVER auto-resolved) |
-| `ExpenseCategory` | Spending categories (Logistics, Honorarium, etc.) |
-| `BudgetAllocation` | Per-semester/category/club budget lines |
-| `Expense` | Individual expense records with approval lifecycle |
-| `Receipt` | File attachment metadata with SHA-256 deduplication |
-| `Notification` | Per-user alerts |
-| `AuditLog` | Immutable state-change history |
+| `SUPER_ADMIN` | Global governance, budget envelope allocation, audit visibility, full conflict override capability. |
+| `ACM_CORE` | Institutional authority: verifies/rejects events, resolves conflicts, approves/rejects expenses, manages allocations, and locks semesters. |
+| `ACM_EXEC` | ACM internal operations: drafts and submits ACM events and expenses. Cannot verify events or approve expenses. |
+| `CLUB_REP` | External club representative: creates and submits events/expenses **strictly for their assigned club**. Can acknowledge clashes involving their events. |
+| `VIEWER` | Read-only access to published calendar events. Restricted from financial, budget, conflict, and administrative management pages. |
+
+> **Record Ownership vs. Administrative Review**: Ordinary edits (updating event details, modifying draft expenses) are restricted strictly to the **original record creator** (`submittedByUserId` / `createdByUserId`). Administrative review actions (`VERIFY_EVENT`, `APPROVE_EXPENSE`, `RESOLVE_CONFLICT`) remain strictly reserved for `ACM_CORE` and `SUPER_ADMIN`.
 
 ---
 
-## Setup
+## 5. Technology Stack & Architecture
 
-### 1. Prerequisites
+| Layer | Technology | Primary Responsibility |
+|---|---|---|
+| **Frontend** | Next.js 16 (App Router), React 19, Tailwind CSS v4 | Responsive UI, interactive AppShell, dashboard, and calendar. |
+| **Calendar & Icons** | FullCalendar v6, Lucide React | Event scheduling views and accessible iconography. |
+| **Backend & API** | Next.js Route Handlers, Zod v3 | Request validation, business logic services, and RBAC authorization. |
+| **Database & ORM** | PostgreSQL ≥ 15, Prisma ORM v6 | Relational schema, migration versioning, and ACID transactions. |
+| **Authentication** | Auth.js (NextAuth v5 beta), `bcryptjs` | JWT session management, password hashing, optional Google OAuth. |
+| **Money & Precision** | `decimal.js` / Prisma `Decimal` | Exact monetary calculations (`DECIMAL(12, 2)`). No floating-point math. |
+| **Asset Storage** | Cloudinary (with local mock fallback) | Signed receipt binary uploads; cryptographic SHA-256 verification. |
 
-- Node.js ≥ 22
-- PostgreSQL (local or remote)
+---
 
-### 2. Clone and install
+## 6. Setup Guide (New Laptop Installation)
+
+Follow these steps to configure and run the project locally on a fresh machine.
+
+### Step 1 — Prerequisites
+
+Ensure the following tools are installed:
+- **Node.js**: `v20.x` or `v22.x` LTS ([Download Node.js](https://nodejs.org/))
+- **npm**: `v10.x` or higher (bundled with Node.js)
+- **PostgreSQL**: `v15` or higher ([Download PostgreSQL](https://www.postgresql.org/download/))
+- **Git**: Installed and available in terminal path
+
+### Step 2 — Clone the Repository
+
+Clone the repository and enter the project folder:
+
+```powershell
+# Windows PowerShell
+git clone https://github.com/manasbhimani/Events-Conflict-Aware-and-Expenses-Manager.git
+cd Events-Conflict-Aware-and-Expenses-Manager
+```
+
+```bash
+# macOS / Linux
+git clone https://github.com/manasbhimani/Events-Conflict-Aware-and-Expenses-Manager.git
+cd Events-Conflict-Aware-and-Expenses-Manager
+```
+
+### Step 3 — Install Dependencies
+
+Install the project dependencies using the lockfile:
 
 ```bash
 npm install
 ```
 
-### 3. Configure environment
+### Step 4 — Configure Local PostgreSQL
 
-Copy `.env.example` to `.env` and set your database connection:
+1. Ensure your PostgreSQL service is running.
+2. Create an empty database named `acm_incursion`:
+
+```powershell
+# Using PostgreSQL psql CLI
+psql -U postgres -c "CREATE DATABASE acm_incursion;"
+```
+
+*Note: Replace `postgres` with your local PostgreSQL superuser name if different.*
+
+### Step 5 — Configure Environment Variables
+
+Create your local `.env` configuration file from the provided template:
+
+```powershell
+# Windows PowerShell
+Copy-Item .env.example .env
+```
 
 ```bash
+# macOS / Linux
 cp .env.example .env
 ```
 
-Edit `.env`:
+Open `.env` and verify the required settings:
+
 ```env
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/acm_incursion?schema=public"
+# 1. Database Connection (Update with your local PostgreSQL credentials)
+DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@localhost:5432/acm_incursion?schema=public"
+
+# 2. Runtime Environment
+NODE_ENV="development"
+
+# 3. Application Security & URL
+AUTH_SECRET="your-secure-32-character-random-secret-key-goes-here!"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+TZ_APP="Asia/Kolkata"
 ```
 
-### 4. Run migrations
+> **Environment Variables Reference**:
+> - `DATABASE_URL` *(Required)*: PostgreSQL connection pool string. Must start with `postgresql://` or `postgres://`.
+> - `AUTH_SECRET` *(Required in production)*: 32+ character key for signing JWT tokens.
+> - `NEXT_PUBLIC_APP_URL` *(Required)*: Canonical URL (`http://localhost:3000` for local testing).
+> - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` *(Optional)*: OAuth credentials. If omitted, credentials-based login works out of the box.
+> - `CLOUDINARY_*` *(Optional)*: Receipt cloud storage credentials. If omitted, the built-in mock handler automatically stores receipt metadata and performs SHA-256 verification locally.
+
+### Step 6 — Prepare the Database
+
+Run these three commands in order to prepare your database schema and demo records:
 
 ```bash
-npx prisma migrate dev
-```
+# 1. Generate Prisma Client
+npm run db:generate
 
-This creates the database and applies the initial migration.
+# 2. Apply migrations to the fresh database
+npm run db:migrate:prod
 
-### 5. Seed the database
-
-```bash
-npx prisma db seed
-```
-
-Or using the npm script:
-```bash
+# 3. Populate minimal demo dataset
 npm run db:seed
 ```
 
-### 6. Run tests
+- `npm run db:generate`: Compiles TypeScript types matching the Prisma schema.
+- `npm run db:migrate:prod` (or `npx prisma migrate deploy`): Applies the 7 versioned migrations non-destructively.
+- `npm run db:seed`: Seeds the 8 demo users, 5 clubs, 7 venues, 6 events, 5 expenses, and intentional conflict pair.
 
-Unit tests (no database required):
-```bash
-npm test
-```
+### Step 7 — Start the Application
 
-Integration tests require the database to be migrated and seeded first.
-
----
-
-## Available Scripts
-
-| Script | Command |
-|---|---|
-| Dev server | `npm run dev` |
-| Generate Prisma client | `npm run db:generate` |
-| Run migrations | `npm run db:migrate` |
-| Seed database | `npm run db:seed` |
-| Open Prisma Studio | `npm run db:studio` |
-| Reset database | `npm run db:reset` |
-| Run tests | `npm test` |
-| Watch tests | `npm run test:watch` |
-| Coverage report | `npm run test:coverage` |
-
----
-
-## Critical Design Decisions
-
-### 1. UTC Timestamps (NON-NEGOTIABLE)
-
-All `DateTime` fields in PostgreSQL store UTC. The application timezone is `Asia/Kolkata` (IST, UTC+5:30).
-
-**Rule:** Never store IST as the canonical database timestamp.  
-**Seed data** uses `istToUtc()` to convert human-readable IST times to UTC before persisting.
-
-```
-4:00 PM IST = 10:30 AM UTC
-8:00 PM IST = 14:30 PM UTC
-```
-
-### 2. End-Exclusive Overlap (NON-NEGOTIABLE)
-
-Two events overlap if and only if:
-```
-A.startAt < B.endAt  AND  B.startAt < A.endAt
-```
-
-Events at `10:00–11:00` and `11:00–12:00` are **NOT** conflicting. The `intervalsOverlap()` function in `src/server/lib/timezone.ts` encodes this.
-
-The database **does not** enforce any constraint preventing overlapping events. The conflict engine (Phase 4) detects and flags them for ACM Core to decide.
-
-### 3. Decimal Money (NON-NEGOTIABLE)
-
-All monetary fields use PostgreSQL `DECIMAL(12, 2)` via Prisma's `@db.Decimal(12, 2)`:
-
-```prisma
-totalBudget     Decimal  @db.Decimal(12, 2)  // Semester
-allocatedAmount Decimal  @db.Decimal(12, 2)  // BudgetAllocation
-amount          Decimal  @db.Decimal(12, 2)  // Expense
-```
-
-JavaScript `number` (IEEE 754 float) is **never** used for financial calculations.
-
-### 4. Non-Destructive Conflict Handling (NON-NEGOTIABLE)
-
-The system **NEVER** automatically cancels, reschedules, or rejects events due to conflicts. The `ConflictRecord` table flags conflicts. Only authorized `ACM_CORE` users can act on them.
-
-### 5. Soft Deletion
-
-`Event`, `Expense`, `Receipt`, `Club` all carry `deletedAt DateTime?`. Soft-deleted records remain in the database for historical/audit purposes. `AuditLog` has **no** soft delete and **no** `updatedAt`.
-
-### 6. ConflictRecord Uniqueness
-
-Conflict pairs are stored in canonical order: `eventAId < eventBId` (lexicographic). The unique constraint is `(eventAId, eventBId, conflictType)`. This means:
-
-- No duplicate `(A, B, VENUE)` rows.
-- A pair CAN have both `(A, B, VENUE)` AND `(A, B, AUDIENCE)` — two legitimate conflict types.
-- The conflict service **must** sort the pair before upserting.
-
-### 7. Structured Audience Representation
-
-Events store audience as two PostgreSQL arrays:
-
-```prisma
-targetYears    Int[]     // [] = ALL years; [1,2] = 1st and 2nd year only
-targetBranches String[]  // [] = ALL branches; ["CSE"] = CSE only
-```
-
-The conflict engine (Phase 4) expands these into `(year, branch)` cell pairs and checks intersection. An empty array in either dimension means that dimension is universal.
-
-### 8. onDelete Behavior
-
-| Relationship | Behavior | Reason |
-|---|---|---|
-| `Event → Club` | `Restrict` | Deleting a club must not silently erase its event history |
-| `Event → Venue` | `Restrict` | Venues must be archived, not deleted, if events exist |
-| `Event → Semester` | `Restrict` | Semesters are financial boundaries; must persist |
-| `Expense → Club` | `Restrict` | Financial records are permanent |
-| `Expense → Semester` | `Restrict` | Semester is the financial container |
-| `Expense → Event` | `SetNull` | If an event is soft-deleted, linked expenses remain valid |
-| `User → Club` | `SetNull` | If a club is deactivated, user's club reference becomes null |
-| `Receipt → Expense` | `Restrict` | Receipts are proof of payment; must not be orphaned |
-| `AuditLog → User` | `SetNull` | If actor user is deleted, logs remain; actorUserId becomes null |
-| `Notification → User` | `Cascade` | User notifications can be deleted with the user |
-
----
-
-## Seed Summary
-
-The idempotent seed creates a clean, minimal demo dataset tailored for evaluation and live demonstration:
-
-- **5 Clubs**: ACM Student Chapter (`ACM`), Coding Club (`CC`), Robotics Club (`RC`), GDSC (`GDSC`), Entrepreneurship Cell (`ECELL`)
-- **8 Users**: 1 SUPER_ADMIN, 1 ACM_CORE, 1 ACM_EXEC, 4 CLUB_REPs (Coding, Robotics, GDSC, E-Cell), 1 VIEWER (Password: `DemoPassword123!`)
-- **7 Venues**: LT-1, LT-2, Seminar Hall, Main Auditorium, CS-LAB-1, CS-LAB-2, Open Air Amphitheater
-- **2 Semesters**: Even Semester 2025-26 (locked for archive demo), Odd Semester 2026-27 (active, ₹50,000 budget envelope)
-- **8 Expense Categories**: Logistics, Refreshments, Marketing & Printing, Equipment & Supplies, Travel & Accommodation, Honorarium & Prizes, Venue & Infrastructure, Miscellaneous
-- **8 Budget Allocations**: Full ₹50,000 distributed across categories for Odd Semester 2026-27
-- **6 Demo Events (EXACTLY 6)**:
-  1. *Coding Club Technical Hackathon 2026* (`CC`, LT-1, Nov 15 4:00 PM–8:00 PM IST, `VERIFIED`, rep.coding) — **Conflict Event A**
-  2. *ACM Technical Workshop on DSA* (`ACM`, LT-1, Nov 15 5:00 PM–7:00 PM IST, `SUBMITTED`, exec) — **Conflict Event B (Overlaps Event 1)**
-  3. *Robotics Club Annual Hardware Exhibition* (`RC`, Seminar Hall, Nov 20 10:00 AM–1:00 PM IST, `VERIFIED`, rep.robotics)
-  4. *GDSC Cloud & DevOps Study Jam* (`GDSC`, LT-2, Nov 22 2:00 PM–4:00 PM IST, `VERIFIED`, rep.gdsc)
-  5. *E-Cell Campus Startup Pitch 2026* (`ECELL`, Main Auditorium, Nov 25 11:00 AM–3:00 PM IST, `SUBMITTED`, rep.ecell)
-  6. *Coding Club CodeSprint Hack Meetup* (`CC`, CS-LAB-1, Nov 28 2:00 PM–4:00 PM IST, `DRAFT`, rep.coding) — **Creator-Only Edit Demo**
-- **5 Demo Expenses (EXACTLY 5)**:
-  1. *Hackathon Refreshments & Snacks* (`DRAFT`, ₹4,500.00, Refreshments, `CC`, rep.coding, linked to Event 1) — **Creator-Only Edit Demo**
-  2. *DSA Workshop Kit & Materials* (`SUBMITTED`, ₹3,200.00, Logistics, `ACM`, exec, linked to Event 2) — **Pending Review Queue**
-  3. *Robotics Hardware Sensors & Microcontrollers* (`APPROVED`, ₹6,500.00, Equipment, `RC`, rep.robotics, reviewed by core, linked to Event 3) — **Budget Deduction + PDF Receipt**
-  4. *Cloud Jam Promotional Banners & Digital Badges* (`APPROVED`, ₹2,400.00, Marketing, `GDSC`, rep.gdsc, reviewed by core, linked to Event 4) — **Budget Deduction + Image Receipt**
-  5. *External Mentor Travel Reimbursement* (`REJECTED`, ₹4,800.00, Travel, `ECELL`, rep.ecell, reviewed by core with rejection reason, linked to Event 5) — **Rejection Workflow**
-- **1 Intentional Conflict Pair**: Event 1 & Event 2 overlapping in LT-1 on Nov 15 with overlapping 2nd-year CSE/IT audience (yielding VENUE & AUDIENCE conflict records)
-- **2 Receipts**: Attached to approved expenses with SHA-256 digests
-- **7 Sample Audit Logs**: Illustrating semester locks, budget allocations, event lifecycle, and expense approvals/rejections
-
-### Demo Conflict Scenario
-
-The seed creates two events specifically designed to demonstrate the conflict detection engine:
-
-| | Hackathon | Workshop |
-|---|---|---|
-| **Title** | [DEMO] Technical Hackathon — Coding Club | [DEMO] Technical Workshop on DSA — ACM |
-| **Club** | Coding Club | ACM Student Chapter |
-| **Venue** | LT-1 | **LT-1 (SAME)** |
-| **Time (IST)** | 4:00 PM – 8:00 PM | **5:00 PM – 7:00 PM (OVERLAP)** |
-| **Time (UTC)** | 10:30 – 14:30 | 11:30 – 13:30 |
-| **Audience** | 2nd Year, CSE/IT | **2nd Year, CSE/IT (SAME)** |
-| **Status** | VERIFIED | SUBMITTED |
-
-The conflict engine (Phase 4) will detect:
-- `VENUE` conflict (HIGH severity) — same LT-1 at overlapping times
-- `AUDIENCE` conflict (MEDIUM severity) — identical audience cell expansion
-
-Both events coexist in the database without any constraint violations. ⚠️
-
----
-
-## ER Overview
-
-```
-Semester ←──── Event ────→ Venue
-   │              │
-   │              ├──→ Club ←── User
-   │              ├──→ EventReview
-   │              ├──→ ConflictRecord (self-join via eventAId/eventBId)
-   │              └──→ Expense ────→ Receipt
-   │
-   └──→ BudgetAllocation ────→ ExpenseCategory
-                                    ↑
-                              Expense ──────────→ AuditLog
-                                         User ──→ Notification
-```
-
----
-
-## Phase 2: Authentication & Authorization Foundation
-
-### 1. Architecture
-
-Authentication is powered by **Auth.js / NextAuth v5** for Next.js 16 App Router using a JWT session strategy:
-
-- **Endpoint**: `/api/auth/[...nextauth]`
-- **Credentials Provider**: For local development and demonstration. Validates email against database, compares passwords using `bcryptjs`, and ensures `user.isActive === true`.
-- **Google OAuth Provider**: Environment-driven (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`).
-- **Domain Restriction**: Enforces `ALLOWED_EMAIL_DOMAIN` (e.g. `@college.edu`). Non-matching domains are rejected during OAuth callback.
-- **Safe Provisioning**: Newly created OAuth users are strictly assigned `role: VIEWER`. Elevated roles (`ACM_CORE`, `SUPER_ADMIN`, `ACM_EXEC`) cannot be self-assigned through OAuth.
-- **Client Identity Invariant**: Identity, role, and club ownership are derived exclusively from the authenticated session and database. Request body fields attempting to specify `userId`, `role`, or `clubId` are strictly ignored.
-
-### 2. Available Roles & RBAC Matrix
-
-| Role | Meaning & Primary Capabilities |
-|---|---|
-| `SUPER_ADMIN` | Full system governance, global access, budget allocation, audit visibility. |
-| `ACM_CORE` | Institutional authority: verify/reject events, resolve/override conflicts, approve/reject expenses, manage budgets, lock semesters, view audit. |
-| `ACM_EXEC` | ACM operational role: submit ACM events, create ACM expenses, view verified calendar and budget. Cannot verify events or approve expenses. |
-| `CLUB_REP` | External club representative: submit events and expenses for their assigned club ONLY. Acknowledge conflicts involving their events. |
-| `VIEWER` | Read-only access: view verified calendar and published events. No write or mutation permissions. |
-
-#### Permission Matrix
-
-| Action | SUPER_ADMIN | ACM_CORE | ACM_EXEC | CLUB_REP | VIEWER |
-|---|:---:|:---:|:---:|:---:|:---:|
-| `VIEW_CALENDAR` / `VIEW_EVENT` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `CREATE_EVENT` / `UPDATE_EVENT` / `SUBMIT_EVENT` | ✅ | ✅ | ✅ (ACM) | ✅ (Own Club) | ❌ |
-| `VERIFY_EVENT` / `REJECT_EVENT` | ✅ | ✅ | ❌ | ❌ | ❌ |
-| `CANCEL_EVENT` | ✅ | ✅ | ❌ | ❌ | ❌ |
-| `ACKNOWLEDGE_CONFLICT` | ✅ | ✅ | ❌ | ✅ (Party) | ❌ |
-| `RESOLVE_CONFLICT` / `OVERRIDE_CONFLICT` | ✅ | ✅ | ❌ | ❌ | ❌ |
-| `CREATE_EXPENSE` / `UPDATE_EXPENSE` | ✅ | ✅ | ✅ (ACM) | ✅ (Own Club) | ❌ |
-| `APPROVE_EXPENSE` / `REJECT_EXPENSE` | ✅ | ✅ | ❌ | ❌ | ❌ |
-| `VIEW_BUDGET` | ✅ | ✅ | ✅ | ❌ | ❌ |
-| `MANAGE_BUDGET` | ✅ | ✅ | ❌ | ❌ | ❌ |
-| `LOCK_SEMESTER` | ✅ | ✅ | ❌ | ❌ | ❌ |
-| `VIEW_ARCHIVE` / `VIEW_REPORTS` | ✅ | ✅ | ✅ | ❌ | ❌ |
-| `VIEW_AUDIT` | ✅ | ✅ | ❌ | ❌ | ❌ |
-
-### 3. Resource Ownership & Multi-Tenancy Rules
-
-RBAC is paired with strict resource ownership:
-- `canAccessClub(user, clubId)`:
-  - `SUPER_ADMIN` & `ACM_CORE`: Multi-tenant institutional access across any club.
-  - `ACM_EXEC`: Access restricted to ACM club (`user.clubId`).
-  - `CLUB_REP`: Strictly isolated to `user.clubId`. Attempts to act on another club throw `ForbiddenError` (HTTP 403).
-  - `VIEWER`: Denied club administration access.
-- `canManageEvent(user, event)`: Requires `UPDATE_EVENT` permission AND `canAccessClub(user, event.clubId)`.
-- `canManageExpense(user, expense)`: Requires `UPDATE_EXPENSE` permission AND `canAccessClub(user, expense.clubId)`.
-
-### 4. Demo Login Credentials
-
-For local development and testing, all seeded accounts are provisioned with:
-
-- **Password**: `DemoPassword123!`
-
-| Role | Demo Email |
-|---|---|
-| `SUPER_ADMIN` | `superadmin@acm-demo.college.edu` |
-| `ACM_CORE` | `core@acm-demo.college.edu` |
-| `ACM_EXEC` | `exec@acm-demo.college.edu` |
-| `CLUB_REP` (Coding Club) | `rep.coding@acm-demo.college.edu` |
-| `CLUB_REP` (Robotics Club) | `rep.robotics@acm-demo.college.edu` |
-| `CLUB_REP` (GDSC) | `rep.gdsc@acm-demo.college.edu` |
-| `CLUB_REP` (E-Cell) | `rep.ecell@acm-demo.college.edu` |
-| `VIEWER` | `viewer@acm-demo.college.edu` |
-
-### 5. Error Handling: 401 vs 403
-
-- **HTTP 401 (`UnauthorizedError`)**: Thrown when a request lacks an authenticated session or has an invalid/expired token (`requireUser()`).
-- **HTTP 403 (`ForbiddenError`)**: Thrown when an authenticated user lacks the required RBAC permission or attempts a cross-tenant ownership violation (`requirePermission()`, `requireClubAccess()`).
-
----
-
-## Phase 3: Event Management & Calendar API
-
-Phase 3 introduces the complete event management domain service and Calendar API consumed by the Phase 4 Conflict Engine and Phase 9 FullCalendar UI.
-
-### 1. Event State Machine
-
-```text
-       ┌───────────┐
-       │   DRAFT   │
-       └─────┬─────┘
-             │ (SUBMIT_EVENT by Club Owner / ACM)
-             ▼
-       ┌───────────┐
-       │ SUBMITTED │
-       └─┬───────┬─┘
-         │       │
-(REJECT) │       │ (VERIFY_EVENT by ACM Core / Super Admin)
-         ▼       ▼
-   ┌──────────┐ ┌──────────┐
-   │ REJECTED │ │ VERIFIED │
-   └──────────┘ └─┬──────┬─┘
-                  │      │
-(CANCEL with note)│      │ (Auto-transition on completion)
-                  ▼      ▼
-            ┌───────────┐┌───────────┐
-            │ CANCELLED ││ COMPLETED │
-            └───────────┘└───────────┘
-```
-
-#### Lifecycle Rules & Invariants:
-- **`DRAFT`**: Initial state on creation. Can be updated or soft-deleted by the owning club rep or ACM Core.
-- **`SUBMITTED`**: Event submitted for institutional verification. Edits remain permitted.
-- **`VERIFIED`**: Approved by ACM Core or Super Admin. Records an `EventReview` decision row (`VERIFIED`) and transactional `AuditLog` entry. Direct updates are locked.
-- **`REJECTED`**: Rejected by ACM Core with mandatory `reason`. Records `EventReview` row (`REJECTED`) and `AuditLog`.
-- **`CANCELLED`**: Cancelled by owning club or ACM Core with mandatory `reason`.
-- **Soft Deletion**: `deletedAt` timestamp set. Never physically deleted from PostgreSQL. Automatically filtered out from calendar feeds and query listings.
-
-### 2. Endpoints Summary
-
-| Method | Endpoint | Description | Permissions |
-|---|---|---|---|
-| `POST` | `/api/events` | Create new event in `DRAFT` status | `CREATE_EVENT` + Club ownership |
-| `GET` | `/api/events` | List events with filters & pagination | `VIEW_CALENDAR` (Scoped by role) |
-| `GET` | `/api/events/[id]` | Get event detail with reviews & relations | `VIEW_EVENT` (Drafts scoped) |
-| `PATCH` | `/api/events/[id]` | Update draft/submitted event | `UPDATE_EVENT` + Club ownership |
-| `DELETE` | `/api/events/[id]` | Soft-delete draft event | `UPDATE_EVENT` + Club ownership |
-| `POST` | `/api/events/[id]/submit` | Transition `DRAFT` -> `SUBMITTED` | `SUBMIT_EVENT` + Club ownership |
-| `POST` | `/api/events/[id]/verify` | Transition `SUBMITTED` -> `VERIFIED` | `VERIFY_EVENT` (ACM Core/Admin) |
-| `POST` | `/api/events/[id]/reject` | Transition `SUBMITTED` -> `REJECTED` | `REJECT_EVENT` (ACM Core/Admin) |
-| `POST` | `/api/events/[id]/cancel` | Transition `VERIFIED/SUBMITTED` -> `CANCELLED` | `CANCEL_EVENT` or Club owner |
-| `GET` | `/api/calendar` | FullCalendar event feed (`from`, `to`) | `VIEW_CALENDAR` |
-
-### 3. Calendar Feed (`GET /api/calendar`)
-
-Queries events overlapping the specified `[from, to)` ISO-8601 UTC window (up to 366 days).
-
-**Response format (`FullCalendarEvent`):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "cm123456789...",
-      "title": "[DEMO] Technical Hackathon — Coding Club",
-      "start": "2026-09-20T10:30:00.000Z",
-      "end": "2026-09-20T14:30:00.000Z",
-      "extendedProps": {
-        "status": "VERIFIED",
-        "clubId": "cm123...",
-        "clubName": "Coding Club",
-        "clubCode": "CC",
-        "venueId": "cm456...",
-        "venueName": "Lecture Theatre 1 (LT-1)",
-        "eventType": "HACKATHON",
-        "expectedAttendees": 80,
-        "targetYears": [2],
-        "targetBranches": ["CSE", "IT"],
-        "organizer": "Coding Club"
-      }
-    }
-  ]
-}
-```
-
-
----
-
-## Phase 4: Conflict Detection Engine
-
-Phase 4 introduces the core scheduling conflict engine, designed to detect, score, and flag overlapping events without automatically altering them (Human Decision Principle).
-
-### 1. Conflict Types
-
-The engine identifies four primary conflict conditions between overlapping events:
-
-1. **VENUE**: Two events claim the same physical venue simultaneously.
-2. **ORGANIZER**: The same club (clubId) attempts to organize overlapping events.
-3. **AUDIENCE**: Two events simultaneously target overlapping demographics (Years & Branches).
-4. **TIGHT_TURNAROUND**: Sequential events have a gap of less than 30 minutes, risking setup/teardown overlap.
-
-### 2. Time Overlap Semantics
-
-- **End-Exclusive Interval**: Two events A and B overlap temporally if and only if A.startAt < B.endAt AND B.startAt < A.endAt.
-- Boundary-touching events (e.g. 10:00-11:00 and 11:00-12:00) do **NOT** overlap in time.
-
-### 3. Jaccard Audience Similarity
-
-Audience targets are expanded into logical cells: (year, branch). 
-Similarity is calculated using the Jaccard index:
-Jaccard = |A n B| / |A ? B|
-
-Wildcards ([] representing ALL years or ALL branches) automatically expand to match any opposing targets proportionally.
-
-### 4. Weighted Scoring Formula
-
-A normalized   to 1 score determines conflict severity:
-
-`	ext
-Score = 0.4 * (Jaccard Audience Similarity) 
-      + 0.3 * (Temporal Overlap Ratio) 
-      + 0.2 * (Same Event Type Match) 
-      + 0.1 * (Normalized Expected Audience Size)
-`
-
-- **Severity Thresholds**:
-  - HIGH: Score >= 0.70
-  - MEDIUM: Score >= 0.40 and < 0.70
-  - LOW: Score < 0.40 (Filtered if strictly audience-based, retained if Venue/Organizer/Turnaround).
-
-### 5. Idempotent Data Model
-
-Conflicts are stored transactionally with a canonical unique constraint:
-[eventAId, eventBId, conflictType] where eventAId is always the lexicographically smaller ID. This guarantees no duplicate pairs. 
-
-When events are updated and no longer conflict, stale records are gracefully marked RESOLVED.
-
-### 6. Conflict APIs
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | /api/events/[id]/conflicts/detect | Triggers detection for an event, upserts records |
-| GET | /api/events/[id]/conflicts | Retrieves all detected conflicts involving the event |
-| POST | /api/conflicts/[id]/acknowledge | Club Rep acknowledges the conflict |
-| POST | /api/conflicts/[id]/resolve | ACM Core resolves the conflict with notes |
-| POST | /api/conflicts/[id]/override | Super Admin forcibly overrides the conflict |
-
-
----
-
-## Phase 5: Expense + Receipt Management
-
-### Expense Architecture & Lifecycle
-Expenses are mapped directly to ExpenseStatus. The lifecycle follows:
-- **PENDING**: Initial state upon creation.
-- **APPROVED**: Explicit approval step (restricted to ACM_CORE and SUPER_ADMIN).
-- **REJECTED**: Explicit rejection (must include a rejection reason).
-
-### APIs
-- POST /api/expenses
-- GET /api/expenses (Supports pagination and filtering)
-- GET /api/expenses/:id
-- PATCH /api/expenses/:id
-- DELETE /api/expenses/:id (Soft delete only)
-- POST /api/expenses/:id/submit (Logs submission intent)
-- POST /api/expenses/:id/approve
-- POST /api/expenses/:id/reject
-- POST /api/expenses/:id/receipts
-- GET /api/expenses/:id/receipts
-- GET /api/expenses/:id/receipts/signature (Generates server-side Cloudinary signature)
-
-### RBAC Rules
-Strict boundaries enforce multi-tenant isolation based on the exact Phase 2 matrix:
-- **CLUB_REP**: Can only create, update, or submit expenses for their explicitly associated club. Cannot view or mutate other clubs' financial records.
-- **ACM_EXEC**: Restricted to the ACM club explicitly.
-- **ACM_CORE / SUPER_ADMIN**: Can create, update, approve, and reject expenses across any club.
-- **VIEWER**: Denied from all mutation endpoints.
-
-### Decimal Money Convention
-The amount field must always be stored precisely in Prisma.Decimal to map directly to PostgreSQL DECIMAL(12,2).
-No floating-point operations (Number, parseFloat) are permitted in final computations. 0, negative amounts, excess decimals, NaN, Infinity, and malformed strings are strictly rejected.
-
-### Semester Locking
-Financial integrity is guarded by the active/locked Semester model. If an expense falls within a locked semester:
-- New expense creations are rejected.
-- Updates to existing expenses are rejected.
-- Soft-deletions are rejected.
-- Receipt uploads are rejected.
-
-### Receipt Security
-Receipt metadata is tracked in PostgreSQL while binary assets are isolated and securely uploaded to Cloudinary.
-- **Allowed Formats:** PDF (application/pdf), JPG (image/jpeg), PNG (image/png).
-- **File Limit:** Exactly 5 MB maximum limit enforced strictly via Zod.
-- **Duplicate SHA-256 Detection:** A 64-character SHA-256 hash must be provided per receipt to reject identical content duplication globally across the system.
-- **Cloudinary:** CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET must be set in the .env file. Signed access ensures that client-side credentials are never leaked.
-
----
-
-## Phase 5.5 — Basic Functional Testing Frontend
-
-A minimal, functional internal control panel designed to allow developers and judges to manually test the full backend capabilities directly through a web browser.
-
-### How to Run
-
-1. Ensure the PostgreSQL database is running and seeded:
-   ```bash
-   npm run db:seed
-   ```
-2. Start the development server:
-   ```bash
-   npm run dev
-   ```
-3. Open `http://localhost:3000` in your browser. Unauthenticated visits automatically redirect to `/login`.
-
-### Demo Login Credentials
-
-Universal password for all demo accounts: `DemoPassword123!`
-
-| Role | Email | Scope / Capability |
-|---|---|---|
-| **SUPER_ADMIN** | `superadmin@acm-demo.college.edu` | Full institutional override, verify/cancel events, approve expenses |
-| **ACM_CORE** | `core@acm-demo.college.edu` | Verify/reject events, cancel events, resolve conflicts, approve expenses |
-| **ACM_EXEC** | `exec@acm-demo.college.edu` | Create/submit events & expenses for internal ACM club |
-| **CLUB_REP** | `rep.coding@acm-demo.college.edu` | Create/submit events & expenses for Coding Club; ack conflicts |
-| **CLUB_REP** | `rep.robotics@acm-demo.college.edu`| Create/submit events & expenses for Robotics Club; ack conflicts |
-| **VIEWER** | `viewer@acm-demo.college.edu` | Read-only verified events and calendar; no expenses or conflicts |
-
-*Note: The login page includes quick-click buttons to automatically fill credentials for any of the roles above.*
-
-### Available Pages
-
-- `/login` — Clean credentials login with error feedback and quick demo autofill.
-- `/dashboard` — Active session identity, role badges, stats, and role capability matrix.
-- `/events` — Filterable directory of campus events with lifecycle actions.
-- `/events/new` — Proposal submission form supporting structured audience wildcards (`[]` = ALL).
-- `/events/[id]` — Detailed event inspection with reviews, submit, verify, reject, cancel, and conflict detection.
-- `/conflicts` — Centralized ACM Core conflict adjudicator table with Acknowledge, Resolve, and Override controls.
-- `/calendar` — Interactive FullCalendar view rendering verified and pending events across months/weeks.
-- `/expenses` — Audit-logged financial ledger with status filtering (`DRAFT`, `SUBMITTED`, `APPROVED`, `REJECTED`).
-- `/expenses/new` — Safe Decimal(12,2) expense recording bound to semester dates.
-- `/expenses/[id]` — Financial entry detail with approval workflows, locked semester protection, and receipt upload.
-- `/budgets` — Semester budget allocation management and category-level financial utilization tracking.
-- `/notifications` — In-app alerts for conflicts, expense reviews, and event lifecycles.
-- `/archive` — Historical archive querying past events, resolution records, and audit logs.
-- `/reports` — Authoritative event, conflict, financial analytics, and CSV exports.
-
-### How to Test Features
-
-1. **Events Lifecycle:**
-   - Log in as `rep.coding@acm-demo.college.edu`.
-   - Go to `/events/new` and submit a new event (starts in `DRAFT`).
-   - On the event detail page, click **Submit for Review** (transitions to `SUBMITTED`).
-   - Log out, log in as `core@acm-demo.college.edu`.
-   - On the event detail page, click **Verify Event** or **Reject Event** (with reason).
-
-2. **Conflict Detection Engine:**
-   - On any event detail page, click **Detect Conflicts**.
-   - The engine evaluates overlapping candidates within &plusmn;30 minutes, computes Jaccard audience similarity, overlap ratios, and composite scores (`0-100`).
-   - Review the detected conflicts table. As `ACM_CORE` or `SUPER_ADMIN`, test **Resolve** (with note) or **Override**.
-   - Verify that the engine **never** cancels or alters event state automatically (Human Decision Principle).
-   - Navigate to `/conflicts` to inspect all detected conflicts across the university.
-
-3. **Calendar:**
-   - Visit `/calendar`.
-   - Browse months/weeks. Notice color coding by status.
-   - Click an event to open its detail view directly.
-
-4. **Expenses & Receipts:**
-   - As a `CLUB_REP`, navigate to `/expenses/new` and record an expense (initializes as `DRAFT`).
-   - On `/expenses/[id]`, click **Submit for Approval** (`SUBMITTED`).
-   - Test receipt upload: Select a JPEG/PNG/PDF (< 5MB). The browser calculates the SHA-256 hash client-side and registers the receipt metadata.
-   - Log in as `core@acm-demo.college.edu` and click **Approve Expense** (`APPROVED`).
-   - Note that if an expense falls into a locked semester, mutations are blocked with an explicit warning banner.
-
-5. **Historical Archive & Institutional Memory (Phase 8):**
-   - Navigate to `/archive`.
-   - Query historical events across statuses (`VERIFIED`, `COMPLETED`, `CANCELLED`, `REJECTED`).
-   - Use search and timeframe filters (`Past Events Only` vs `Upcoming`).
-   - Click **Review & Outcomes** on any event to inspect recorded review notes, historical conflicts, and explicit audit facts.
-   - Note the factual distinction: expected attendees are displayed, while actual attendees and outcomes are transparently indicated as unrecorded in the system.
-   - As `ACM_CORE` or `SUPER_ADMIN`, switch to the **Audit Logs** tab to inspect immutable system mutation records.
-
-6. **Reports, Analytics & CSV Export (Phase 8):**
-   - Navigate to `/reports`.
-   - Inspect the **Events Report** for status, category, venue, and club distribution metrics.
-   - Inspect the **Conflict Report** for resolution breakdown, severity counts, and conflict scores.
-   - Inspect the **Financial Report** for authoritative Decimal budget utilization, allocated sums, approved expenditures, remaining balances, and overspending indicators.
-   - Inspect **Monthly Trends** for multi-month event and spending comparisons with zero-filled historical buckets.
-   - Click **Export CSV** to download server-generated CSV reports. The export engine automatically sanitizes cells against spreadsheet formula injection (`=`, `+`, `-`, `@`, `\t`, `\r`) and applies standard RFC 4180 escaping with UTF-8 BOM encoding.
-
-### Cloudinary Architecture Note
-
-Direct client-to-Cloudinary upload ensures that backend servers do not handle heavy binary payloads. In local testing mode without production Cloudinary API credentials, the receipt upload flow generates mock storage URLs while preserving cryptographic SHA-256 client hashing and strict metadata validation in the PostgreSQL database.
-
----
-
-## Phase 9: Deployment Readiness & Production Hardening
-
-Phase 9 establishes operational reliability, environment secret validation, HTTP security headers, health probing, non-destructive database migrations, and containerization.
-
-### 1. Pre-Deployment Configuration & Secrets
-Environment variables are strictly validated by `src/server/config/env.ts` on startup without leaking secret contents:
-
-| Variable | Requirement | Purpose | Validation Rule |
-|---|:---:|---|---|
-| `DATABASE_URL` | **Required** | PostgreSQL connection pool | Must begin with `postgresql://` or `postgres://` |
-| `AUTH_SECRET` | **Required (Prod)** | Session token cryptographic signing | Minimum 32 characters in production (`openssl rand -base64 32`) |
-| `NODE_ENV` | Optional | Runtime mode | `development` \| `test` \| `production` |
-| `NEXT_PUBLIC_APP_URL`| Optional | Canonical public application URL | Valid URL string (default `http://localhost:3000`) |
-| `GOOGLE_CLIENT_ID` | Optional | Google OAuth SSO identifier | Paired: both ID & Secret must be provided if either is set |
-| `GOOGLE_CLIENT_SECRET`| Optional | Google OAuth SSO secret | Paired with `GOOGLE_CLIENT_ID` |
-| `CLOUDINARY_*` | Optional | Receipt binary storage credentials | Trio: Cloud Name, API Key, and Secret must all be set if any is provided |
-
-### 2. Non-Destructive Database Migrations in Production
-**CRITICAL RULE:** Never execute `prisma migrate reset` or interactive `prisma migrate dev` on a production or persistent database.
-
-To apply pending migrations safely without dropping data:
-```bash
-# Safe production migration script
-npm run db:migrate:prod
-# Directly runs: npx prisma migrate deploy
-```
-
-### 3. Operational Health Check & Liveness Probe (`/api/health`)
-The application exposes a production-ready operational probe:
-- **`GET /api/health`**: Executes a lightweight database connectivity check (`SELECT 1`), measures round-trip latency, reports process uptime, and returns HTTP 200 `UP` or HTTP 503 `DOWN`.
-- **`HEAD /api/health`**: Fast liveness probe returning HTTP 200 or 503 with an empty body for load balancers.
-- **Privacy Guarantee**: Database credentials, passwords, and raw error connection strings are **never** returned in the response payload.
-
-### 4. HTTP Security Headers
-Configured in `next.config.ts` across all routes (`/(.*)`):
-- `X-Frame-Options: DENY` (Anti-Clickjacking)
-- `X-Content-Type-Options: nosniff` (Anti-MIME Sniffing)
-- `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload` (HSTS)
-- `Referrer-Policy: strict-origin-when-cross-origin`
-- `Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()`
-- `Content-Security-Policy`: Strictly scoped for Next.js App Router, React, Tailwind, and FullCalendar.
-- `poweredByHeader: false` (Disables `X-Powered-By: Next.js` fingerprinting).
-
-### 5. Production Docker Deployment
-A multi-stage `Dockerfile` (Node 22 Alpine) and `docker-compose.yml` are provided for containerized deployment:
+Start the local Next.js development server:
 
 ```bash
-# 1. Build and run via Docker Compose
-docker compose up -d --build
-
-# 2. Check health status
-curl -i http://localhost:3000/api/health
-
-# 3. Apply migrations in container
-docker compose exec app npx prisma migrate deploy
+npm run dev
 ```
 
-### 6. Error Boundaries & Operational Resilience
-- `src/app/not-found.tsx`: Clean, styled 404 handler guiding users back to `/dashboard` or `/events`.
-- `src/app/error.tsx`: Client error boundary preventing raw stack trace exposure to end-users in production while logging unique error digests for server debugging.
-- `src/app/global-error.tsx`: Root-level layout error boundary.
+Open **`http://localhost:3000`** in your browser. If port 3000 is occupied, Next.js will automatically select an available port and display it in the terminal output.
+
+To stop the development server, press `Ctrl + C` in your terminal.
 
 ---
 
-### Troubleshooting
+## 7. Troubleshooting
 
-- **Login Page Runtime Error / Hydration Mismatch**: If you encounter a Next.js hydration mismatch pointing to `<Shield />` or `data-darkreader-mode`, this is caused by the Dark Reader browser extension modifying the DOM. Disable Dark Reader on `localhost` to resolve it.
-- **Missing AUTH_SECRET in Production**: In production mode (`NODE_ENV=production`), `AUTH_SECRET` must be set with at least 32 characters. Run `openssl rand -base64 32` to generate a strong secret.
-- **Database Connection Refused (`ECONNREFUSED 5432`)**: Ensure your PostgreSQL service is running (`pg_isready` or check Windows Services). Verify `DATABASE_URL` credentials in `.env`.
-- **Demo Buttons Missing on Login**: In production environments (`NODE_ENV=production`) on non-localhost domains, demo login buttons are hidden by default for security. Set `NEXT_PUBLIC_ENABLE_DEMO_LOGIN=true` if explicitly testing in a remote staging container.
-- **Port 3000 Already in Use**: Run `npx kill-port 3000` or specify an alternate port: `npm run dev -- -p 3001`.
-- **Safe Database Migrations in Staging / Production**: Never run `prisma migrate reset` in persistent environments. Always use `npm run db:migrate:prod` (`npx prisma migrate deploy`).
+| Issue | Root Cause | Solution |
+|---|---|---|
+| `ECONNREFUSED 127.0.0.1:5432` | PostgreSQL service is stopped | Start PostgreSQL service via Windows Services (`services.msc`) or `sudo systemctl start postgresql`. |
+| `Authentication failed for user` | Wrong database password in `.env` | Verify your local PostgreSQL password and update the `DATABASE_URL` in `.env`. |
+| `database "acm_incursion" does not exist` | Database not created | Run `psql -U postgres -c "CREATE DATABASE acm_incursion;"` before applying migrations. |
+| `PrismaClientInitializationError` | Prisma client not generated | Run `npm run db:generate`. |
+| `Table '...' does not exist` | Migrations not executed | Run `npm run db:migrate:prod` to apply pending migrations. |
+| `Port 3000 is in use` | Another process occupies port 3000 | Specify a custom port: `npm run dev -- -p 3001`. |
+| Hydration error on `<Shield />` | Dark Reader browser extension | Disable Dark Reader on `localhost` (extension mutates HTML attributes during SSR). |
 
 ---
 
-## Phase 12 — Demo Readiness, Verification & Release Package
+## 8. Demo Accounts & Walkthrough Guide
 
-This section provides operational instructions, account checklists, and demonstration scripts for judges, faculty, and presentation teams.
+All demo accounts are provisioned with the local testing password: **`DemoPassword123!`**  
+*(The login page at `/login` provides one-click autofill buttons for each account).*
 
-### 1. Demonstration Sequence (5–8 Minutes)
+| Role | Account Email | Demonstration Purpose |
+|---|---|---|
+| `SUPER_ADMIN` | `superadmin@acm-demo.college.edu` | System governance, global audit log visibility, semester locking. |
+| `ACM_CORE` | `core@acm-demo.college.edu` | Verifying/rejecting events, resolving conflicts, approving expenses. |
+| `ACM_EXEC` | `exec@acm-demo.college.edu` | Internal ACM proposals and expenses. |
+| `CLUB_REP` | `rep.coding@acm-demo.college.edu` | **Coding Club**: creator-only draft event and expense editing demo. |
+| `CLUB_REP` | `rep.robotics@acm-demo.college.edu` | **Robotics Club**: approved hardware expense with receipt proof. |
+| `CLUB_REP` | `rep.gdsc@acm-demo.college.edu` | **GDSC**: verified workshop and promotional expense. |
+| `CLUB_REP` | `rep.ecell@acm-demo.college.edu` | **E-Cell**: submitted pitch event and rejected expense workflow. |
+| `VIEWER` | `viewer@acm-demo.college.edu` | Verified calendar viewing; financial and administrative boundary enforcement. |
 
-Follow this sequence for an end-to-end presentation demonstrating role-based access, scheduling conflict prevention, financial precision, and institutional auditability:
+### Demonstration Script
 
-```
-[1. Login & Dashboard] ──> [2. Proposal & Review] ──> [3. Conflict Engine] ──> [4. Human Adjudication]
-          │                                                                                 │
-          ▼                                                                                 ▼
-[8. Audit & CSV Exports] <── [7. Notifications] <── [6. Budget Limits] <── [5. Expense & Receipt]
-```
-
-1. **Step 1: Role-Aware Login & Operational Hub (1 min)**
-   - Navigate to `/login`.
-   - Click the **"Coding Club Rep"** quick-select button (`rep.coding@acm-demo.college.edu`).
-   - Sign in to reach `/dashboard`. Note the role-specific view: "My Event Submissions" priority queue, active clashes, upcoming schedule in Indian Standard Time (IST, UTC+05:30), and unread notifications feed.
-
-2. **Step 2: Event Proposal & Creator-Only Editing (1.5 min)**
-   - Open seeded draft event: navigate to `/events` and select *Coding Club CodeSprint Hack Meetup* (`DRAFT`).
-   - Notice that as `rep.coding@acm-demo.college.edu` (the creator), the **"Edit Event"** action is accessible.
-   - **Creator-Only Editing Demo**: If you sign in as `rep.robotics@acm-demo.college.edu` or another user, the edit action is hidden in the UI and blocked with HTTP 403 by the backend policy (`assertCanEditEvent`). Only the event's creator (or SUPER_ADMIN / ACM_CORE) can modify drafts!
-   - On `/events/[id]`, review the details and click **"Submit for Review"** via the confirmation dialog. Event transitions safely to `SUBMITTED`.
-
-3. **Step 3: Scheduling Conflict Detection (1 min)**
+1. **Role Login & Dashboard (`/login` → `/dashboard`)**:
+   - Sign in as `rep.coding@acm-demo.college.edu`. View role-tailored dashboard with pending submissions and schedule timeline.
+2. **Creator-Only Editing (`/events`)**:
+   - Open draft event *Coding Club CodeSprint Hack Meetup*. As the creator (`rep.coding`), the edit action is available.
+   - If signed in as `rep.robotics`, editing is hidden in the UI and blocked by backend policy (`assertCanEditEvent`).
+   - Submit the event for review (`SUBMITTED`).
+3. **Conflict Detection Engine (`/events/[id]`)**:
    - Open the seeded conflict pair: *Coding Club Technical Hackathon 2026* (`VERIFIED`) and *ACM Technical Workshop on DSA* (`SUBMITTED`).
-   - On the event detail page, click **"Detect Conflicts"**.
-   - The engine evaluates overlapping candidate bookings within ±30 minutes across venues and audience cohorts, calculating Jaccard audience overlap and venue proximity.
-   - Note the detected clashes in the inline table with severity badges and composite conflict scores (0–100 scale).
-
-4. **Step 4: Human Conflict Adjudication & Non-Destructive Resolution (1.5 min)**
-   - Sign out and sign in as **"ACM Core Lead"** (`core@acm-demo.college.edu`).
-   - Navigate to `/conflicts`. Filter by `OPEN` and `HIGH`.
-   - Inspect the **How Scoring Works** guide explaining the weighted formula.
-   - Review Event A vs Event B side-by-side.
-   - Click **"Acknowledge"** or **"Resolve"** (provide resolution note: *"Rescheduled slot with consent"*).
-   - **Crucial Rule Highlight**: Demonstrate that the conflict engine **never** auto-cancels or modifies events without human verification.
-   - Navigate back to `/events/[id]` and click **"Verify Event"** to schedule it on the campus master calendar.
-
-5. **Step 5: Expense Ledger & Creator-Only Expenses (1 min)**
-   - Sign in as `rep.coding@acm-demo.college.edu`.
-   - Navigate to `/expenses` and open seeded draft expense *Hackathon Refreshments & Snacks* (`DRAFT`, ₹4,500.00).
-   - Note the creator edit button is visible. Cross-user editing is blocked for non-creators.
-   - Review attached receipt proofs on approved expenses (*Robotics Hardware Sensors & Microcontrollers*).
-   - On `/expenses/[id]`, click **"Submit for Approval"** via `<ConfirmDialog>`.
-   - Upload a test receipt (PNG/PDF < 5MB). Observe the client-side computed SHA-256 digest in the receipts table.
-   - Click **"Submit for Approval"** via `<ConfirmDialog>`.
-
-6. **Step 6: Semester Budget Caps & Core Approval (1 min)**
-   - Sign in as `core@acm-demo.college.edu`.
-   - Open `/expenses/[id]` and click **"Approve Expense"**.
-   - Navigate to `/budgets`. Review the active semester's Total Envelope, Total Allocated, Spent run-rate, and remaining category balances. Note that locked semesters prevent all budget alterations.
-
-7. **Step 7: Notifications & Historical Intelligence (1 min)**
-   - Navigate to `/notifications`. Switch between **"All Notifications"** and **"Unread Only"** tabs. Click **"Mark all as read"**.
-   - Navigate to `/archive`. Search historical events, filter past vs upcoming, and inspect the immutable **Audit Logs** tab.
-   - Navigate to `/reports`. Review category utilization and click **"Export EVENTS CSV"** or **"Export FINANCIAL CSV"**. Note that generated files include OWASP spreadsheet formula injection defenses (`'`, `""`).
+   - Click **Detect Conflicts**. Observe the detected `VENUE` (LT-1) and `AUDIENCE` (2nd Year CSE/IT) clashes with composite severity scores.
+4. **Human Conflict Adjudication (`/conflicts`)**:
+   - Sign in as `core@acm-demo.college.edu`. Navigate to `/conflicts`.
+   - Inspect side-by-side comparison. Click **Resolve** with a resolution note or **Override**.
+   - Note the core rule: **The conflict engine never auto-cancels events**.
+5. **Expense Lifecycle & Receipt Proof (`/expenses`)**:
+   - Sign in as `rep.coding@acm-demo.college.edu`. Open draft expense *Hackathon Refreshments & Snacks* (₹4,500.00).
+   - Submit for approval. Observe client SHA-256 calculation upon receipt upload.
+   - Switch to `core@acm-demo.college.edu` and click **Approve Expense**.
+6. **Budget Governance (`/budgets`)**:
+   - View category allocations and real-time utilization against the ₹50,000 envelope.
+7. **Institutional Archive, Notifications & Reports (`/archive`, `/notifications`, `/reports`)**:
+   - Inspect notification center and mark alerts as read.
+   - Review historical event records and immutable audit logs in `/archive`.
+   - Export CSV reports in `/reports` (formula injection sanitized with UTF-8 BOM).
 
 ---
 
-### 2. Demo Preparation Checklist
+## 9. Minimal Demo Dataset Summary
 
-Before presenting, complete these setup steps:
+The idempotent seed (`npm run db:seed`) provides a deterministic dataset:
 
-- [ ] **Environment Configuration**:
-  Ensure `.env` contains:
-  ```env
-  DATABASE_URL="postgresql://postgres:postgres@localhost:5432/acm_incursion?schema=public"
-  AUTH_SECRET="your-development-auth-secret-min-32-chars-long"
-  NODE_ENV="development"
-  NEXT_PUBLIC_APP_URL="http://localhost:3000"
-  ```
-- [ ] **Database Migration Status**:
-  Run `npx prisma migrate status` to confirm all 7 migrations are applied.
-- [ ] **Deterministic Seed Preparation**:
-  Run `npm run db:seed` to ensure sample clubs, venues, users, semesters, and conflict pairs are loaded.
-- [ ] **Application Startup**:
-  Run `npm run dev` (or `npm run build && npm run start`).
-- [ ] **Browser Verification**:
-  Open `http://localhost:3000/login` in an incognito window. Verify quick demo account buttons appear.
+| Entity | Count | Key Details |
+|---|:---:|---|
+| **Clubs** | 5 | ACM Student Chapter (`ACM`), Coding Club (`CC`), Robotics Club (`RC`), GDSC (`GDSC`), E-Cell (`ECELL`). |
+| **Demo Users** | 8 | 1 Super Admin, 1 ACM Core, 1 ACM Exec, 4 Club Reps, 1 Read-Only Viewer. |
+| **Venues** | 7 | LT-1, LT-2, Seminar Hall, Auditorium, CS-LAB-1, CS-LAB-2, Open Air Amphitheater. |
+| **Semesters** | 2 | Even Semester 2025-26 (*Locked*), Odd Semester 2026-27 (*Active*, ₹50,000 envelope). |
+| **Demo Events** | **6** | 1 verified conflict party, 1 submitted overlapping party, 2 verified distinct, 1 submitted distinct, 1 draft. |
+| **Demo Expenses** | **5** | 1 Draft (₹4,500), 1 Submitted (₹3,200), 2 Approved (₹5,000, ₹6,500), 1 Rejected with reason (₹4,800). |
+| **Conflict Pair** | **1** | Hackathon vs. DSA Workshop on Sept 20, 2026 in LT-1 (`VENUE` and `AUDIENCE` records). |
+| **Receipts** | 2 | Attached to approved expenses with cryptographic SHA-256 digests. |
+| **Audit Logs** | 7 | Tracking semester locks, budget allocations, event lifecycle, and expense approvals. |
 
 ---
 
-### 3. Pre-Demo Smoke-Test Checklist
+## 10. Operational Limitations & Notes
 
-Run these 6 fast smoke tests 5 minutes before presentation:
-
-1. **Auth Smoke Test**: Click "Super Admin" demo button on `/login` and verify successful redirection to `/dashboard`.
-2. **Calendar Smoke Test**: Open `/calendar` and verify FullCalendar loads with color-coded events.
-3. **Events Smoke Test**: Open `/events` and click the quick status tabs (`All`, `Pending Review`, `Verified`).
-4. **Conflicts Smoke Test**: Open `/conflicts` and verify the score guide accordion toggles.
-5. **Budgets Smoke Test**: Open `/budgets` and confirm KPI summary cards display active rupee values.
-6. **Health Probe Smoke Test**: Run `curl -i http://localhost:3000/api/health` and verify HTTP 200 `{"status":"UP"}`.
+- **Receipt Storage in Local Mode**: When Cloudinary credentials (`CLOUDINARY_*`) are omitted, the application uses mock storage URLs (`https://storage.mock.local/...`) while preserving full client SHA-256 hashing and database metadata tracking.
+- **Expected vs. Actual Attendance**: The database records planned/expected attendees for room capacity calculation; actual physical attendance is transparently indicated as unrecorded.
+- **Locked Semester Governance**: Locked semesters reject all new events, budget allocations, and expense submissions by architectural design.
+- **Google OAuth Domain Restriction**: If Google OAuth is enabled, `ALLOWED_EMAIL_DOMAIN` rejects email addresses outside the specified institutional domain.
 
 ---
 
-### 4. Known Limitations & Non-Defects
+## 11. Verification & Test Suite
 
-1. **Receipt Binary Storage in Local Development**:
-   In local development without production Cloudinary keys, receipts use mock public URLs (`https://storage.mock.local/receipts/...`) while maintaining client SHA-256 calculation and PostgreSQL metadata persistence.
-2. **Read-Only Viewer Capabilities**:
-   Users with role `VIEWER` are intentionally restricted from expenses, budgets, conflicts, and creation forms. Attempting to navigate directly redirects to dashboard with an informational banner.
-3. **Factual Institutional Archive Reporting**:
-   In `/archive`, actual post-event attendance is transparently indicated as *"Not recorded in database"* because the database records planned attendees rather than manual barcode turnstile scans.
-4. **Locked Semester Immutability**:
-   Expenses and budgets in locked semesters cannot be edited, submitted, or approved. This is an intentional financial governance rule, not an application defect.
+Verify application integrity using the project scripts:
+
+```bash
+# Run unit & integration test suite (320 tests)
+npm test
+
+# Run TypeScript type check
+npx tsc --noEmit
+
+# Compile production build
+npm run build
+```
+
+### Directory Structure
+
+```
+├── prisma/
+│   ├── schema.prisma            # Relational database schema
+│   ├── migrations/              # 7 versioned PostgreSQL migrations
+│   └── seed.ts                  # Idempotent minimal demo seed script
+├── src/
+│   ├── app/                     # Next.js App Router (pages & API routes)
+│   ├── components/              # Shared white-theme UI components & AppShell
+│   └── server/
+│       ├── config/              # Environment schema & validation
+│       ├── lib/                 # Prisma client, auth, timezone, errors
+│       ├── policies/            # RBAC and creator ownership predicates
+│       ├── repositories/        # Database access layer
+│       ├── services/            # Domain logic (events, conflicts, expenses, budgets)
+│       └── validators/          # Zod request validation schemas
+└── tests/
+    ├── unit/                    # Fast logic tests (RBAC, conflict math, money)
+    └── integration/             # Database, API routes, and deployment tests
+```
+
+---
+
+## 12. Submission Note
+
+This repository contains the complete source code, test suites, database migrations, and operational documentation for the **Conflict-Aware Events and Expenses Manager**. All instructions have been structured and verified to enable reproducible setup and evaluation on any local machine.
