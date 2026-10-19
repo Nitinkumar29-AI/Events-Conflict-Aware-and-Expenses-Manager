@@ -14,6 +14,10 @@ export class ConflictService {
    * Discovers candidates, calculates conflicts, and upserts ConflictRecords.
    */
   async detectConflicts(user: SessionUser, eventId: string): Promise<ConflictRecord[]> {
+    if (user.role === 'VIEWER' || user.role === 'MEMBER') {
+      throw new ForbiddenError('Members and viewers cannot run conflict detection.')
+    }
+
     // Determine visibility/permission. For now, assume anyone who can view the event can detect conflicts.
     // However, the prompt says: POST /api/events/:id/conflicts/detect requires auth, enforce appropriate visibility.
     // We'll enforce VIEW_EVENT.
@@ -264,6 +268,10 @@ export class ConflictService {
   }
 
   async getConflictsForEvent(user: SessionUser, eventId: string) {
+    if (user.role === 'VIEWER' || user.role === 'MEMBER') {
+      throw new ForbiddenError('Members and viewers cannot view conflict records.')
+    }
+
     assertCan(user, 'VIEW_EVENT')
 
     const conflicts = await prisma.conflictRecord.findMany({

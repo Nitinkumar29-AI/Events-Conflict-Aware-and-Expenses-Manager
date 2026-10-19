@@ -211,7 +211,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
       return
     }
 
-    const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
+    const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
     if (!ALLOWED_TYPES.includes(file.type)) {
       setError('Invalid file format. Only JPEG, PNG, and PDF files are permitted.')
       return
@@ -222,32 +222,12 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
     setSuccessMsg(null)
 
     try {
-      // 2. Compute client SHA-256 hash
-      const buffer = await file.arrayBuffer()
-      const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
-      const hashArray = Array.from(new Uint8Array(hashBuffer))
-      const sha256Hex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
-
-      // 3. Request upload signature from backend
-      await fetchApi<{
-        timestamp: number
-        signature: string
-        cloudName: string
-        apiKey: string
-      }>(`/api/expenses/${expenseId}/receipts/signature`)
-
-      // 4. Save receipt record with computed hash and metadata
-      await fetchApi(`/api/expenses/${expenseId}/receipts`, {
-        method: 'POST',
-        body: JSON.stringify({
-          fileName: file.name,
-          mimeType: file.type,
-          fileSizeBytes: file.size,
-          sha256: sha256Hex,
-          fileUrl: `https://storage.mock.local/receipts/${file.name}`,
-          storagePublicId: `receipt_${Date.now()}_${file.name}`,
-        }),
-      })
+        const formData = new FormData()
+        formData.set('file', file)
+        await fetchApi(`/api/expenses/${expenseId}/receipts`, {
+          method: 'POST',
+          body: formData,
+        })
 
       setSuccessMsg(`Receipt "${file.name}" added successfully.`)
       await loadData()
@@ -537,7 +517,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                 Proof of Expense (Receipts)
               </h3>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                Maximum 5MB • Formats: JPEG, PNG, WebP, PDF • Deduplication via client-reported SHA-256
+                Maximum 5MB • Formats: JPEG, PNG, PDF • Content-based SHA-256 deduplication
               </p>
             </div>
 
@@ -547,7 +527,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                 <span>{uploadingReceipt ? 'Processing...' : 'Upload Receipt'}</span>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  accept="image/jpeg,image/png,application/pdf"
                   disabled={uploadingReceipt}
                   onChange={handleReceiptFileChange}
                   className="hidden"
@@ -564,7 +544,7 @@ export default function ExpenseDetailPage({ params }: { params: Promise<{ id: st
                     <th className="py-2.5 px-3">File Name</th>
                     <th className="py-2.5 px-3">Format</th>
                     <th className="py-2.5 px-3">Size</th>
-                    <th className="py-2.5 px-3">Client SHA-256 Digest</th>
+                    <th className="py-2.5 px-3">SHA-256 Digest</th>
                     <th className="py-2.5 px-3 text-right">View</th>
                   </tr>
                 </thead>

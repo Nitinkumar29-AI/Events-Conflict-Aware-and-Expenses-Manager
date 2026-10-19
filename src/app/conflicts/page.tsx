@@ -24,6 +24,7 @@ import {
   RotateCcw,
   HelpCircle,
   Check,
+  Sparkles,
 } from 'lucide-react'
 
 export interface ConflictRow {
@@ -56,6 +57,13 @@ export interface ConflictRow {
   }
 }
 
+interface ConflictAssistantAnalysis {
+  summary: string
+  reasons: string[]
+  suggestions: string[]
+  human_review_required: true
+}
+
 function ConflictsContent() {
   const searchParams = useSearchParams()
   const initialStatus = searchParams.get('status') || ''
@@ -69,6 +77,11 @@ function ConflictsContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+  const [assistantResponses, setAssistantResponses] = useState<
+    Record<string, ConflictAssistantAnalysis>
+  >({})
+  const [assistantErrors, setAssistantErrors] = useState<Record<string, string>>({})
+  const [assistantLoadingId, setAssistantLoadingId] = useState<string | null>(null)
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>(initialStatus)
@@ -166,6 +179,39 @@ function ConflictsContent() {
     }
   }
 
+  const requestAssistantAnalysis = async (conflictId: string) => {
+    setAssistantLoadingId(conflictId)
+    setAssistantResponses((current) => {
+      const next = { ...current }
+      delete next[conflictId]
+      return next
+    })
+    setAssistantErrors((current) => {
+      const next = { ...current }
+      delete next[conflictId]
+      return next
+    })
+
+    try {
+      const response = await fetchApi<ConflictAssistantAnalysis>(
+        `/api/conflicts/${conflictId}/assistant`,
+        { method: 'POST' }
+      )
+      setAssistantResponses((current) => ({
+        ...current,
+        [conflictId]: response.data,
+      }))
+    } catch (error: unknown) {
+      setAssistantErrors((current) => ({
+        ...current,
+        [conflictId]:
+          error instanceof Error ? error.message : 'Could not generate assistant analysis.',
+      }))
+    } finally {
+      setAssistantLoadingId(null)
+    }
+  }
+
   const hasActiveFilters = Boolean(statusFilter || severityFilter || typeFilter)
 
   const quickStatusTabs = [
@@ -219,6 +265,12 @@ function ConflictsContent() {
           </p>
         </div>
       </div>
+
+      <p className="text-xs text-slate-500">
+        Optional AI suggestions use event titles, event types, club and venue names, schedules, and
+        conflict details sent to the configured model provider. They do not change records and
+        require human review.
+      </p>
 
       {/* Scoring Explanation Guide (Collapsible) */}
       {showScoreGuide && (
@@ -448,7 +500,8 @@ function ConflictsContent() {
                     canClient(user?.role, 'OVERRIDE_CONFLICT')
 
                   return (
-                    <tr key={c.id} className="hover:bg-slate-50/80 transition-colors">
+                    <React.Fragment key={c.id}>
+                    <tr className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-4 max-w-[220px]">
                         <Link
                           href={`/events/${c.eventA?.id}`}
@@ -532,6 +585,16 @@ function ConflictsContent() {
 
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => void requestAssistantAnalysis(c.id)}
+                            disabled={assistantLoadingId !== null}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-md text-[11px] font-semibold transition-colors shadow-2xs disabled:opacity-50"
+                            title="Get read-only AI suggestions for this conflict"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            {assistantLoadingId === c.id ? 'Thinking…' : 'Ask AI'}
+                          </button>
                           {canAck && (
                             <button
                               onClick={() => setAckConflictId(c.id)}
@@ -573,6 +636,43 @@ function ConflictsContent() {
                         </div>
                       </td>
                     </tr>
+                    {(assistantResponses[c.id] || assistantErrors[c.id]) && (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-3 bg-indigo-50/60">
+                          {assistantErrors[c.id] ? (
+                            <p role="alert" className="text-xs text-rose-700">
+                              Assistant unavailable: {assistantErrors[c.id]}
+                            </p>
+                          ) : (
+                            <div className="space-y-2 text-xs text-slate-700">
+                              <p className="font-semibold text-indigo-950">
+                                AI conflict analysis — coordinator review required
+                              </p>
+                              <p>{assistantResponses[c.id]?.summary}</p>
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <div>
+                                  <p className="font-semibold">Reasons</p>
+                                  <ul className="list-disc pl-4">
+                                    {assistantResponses[c.id]?.reasons.map((reason, index) => (
+                                      <li key={index}>{reason}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                                <div>
+                                  <p className="font-semibold">Options to consider</p>
+                                  <ul className="list-disc pl-4">
+                                    {assistantResponses[c.id]?.suggestions.map((suggestion, index) => (
+                                      <li key={index}>{suggestion}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   )
                 })}
               </tbody>

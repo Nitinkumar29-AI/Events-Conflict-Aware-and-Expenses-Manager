@@ -80,7 +80,7 @@ export default function BudgetsPage() {
 
   useEffect(() => {
     if (!role) return
-    if (role === 'VIEWER' || role === 'CLUB_REP') {
+    if (role === 'VIEWER' || role === 'MEMBER' || role === 'CLUB_REP') {
       router.replace('/dashboard')
       return
     }

@@ -17,6 +17,7 @@ enum UserRole {
   ACM_CORE
   ACM_EXEC
   CLUB_REP
+  MEMBER
   VIEWER
 }
 
@@ -232,6 +233,7 @@ model Semester {
 model Event {
   id               String       @id @default(cuid())
   title            String
+  organizerName    String       @default("")
   description      String?
   eventType        EventType    @default(OTHER)
   clubId           String

@@ -64,13 +64,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return false
           }
         } else {
-          // Provision new OAuth user with safe default VIEWER role.
-          // NEVER automatically grant elevated roles (ACM_CORE, SUPER_ADMIN, ACM_EXEC) via OAuth!
+          // Provision new OAuth users as read-only members. Elevated roles are never granted via OAuth.
           dbUser = await prisma.user.create({
             data: {
               email,
               name: user.name || email.split('@')[0],
-              role: UserRole.VIEWER,
+              role: UserRole.MEMBER,
               clubId: null,
               isActive: true,
             },

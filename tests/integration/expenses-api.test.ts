@@ -223,13 +223,11 @@ describe('Expenses Route Handlers & Zero-Trust Creator Ownership (Integration)',
 
     const receiptReq = new NextRequest(`http://localhost:3000/api/expenses/${testExpenseId}/receipts`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fileName: 'unauthorized_receipt.pdf',
-        mimeType: 'application/pdf',
-        fileSizeBytes: 2048,
-        sha256: 'deadbeef' + Date.now().toString().padEnd(56, '0'),
-      }),
+      body: (() => {
+        const formData = new FormData()
+        formData.set('file', new File([Buffer.from('%PDF-1.7\\nunauthorized')], 'unauthorized_receipt.pdf', { type: 'application/pdf' }))
+        return formData
+      })(),
     })
 
     const receiptRes = await addReceiptHandler(receiptReq, {
@@ -241,7 +239,7 @@ describe('Expenses Route Handlers & Zero-Trust Creator Ownership (Integration)',
     expect(json.error.code).toBe('FORBIDDEN')
   })
 
-  it('creator CAN attach receipts to their own expense', async () => {
+  it('creator receives a clear storage configuration error when Cloudinary is not configured', async () => {
     currentUserMock = {
       id: codingRepUser.id,
       email: codingRepUser.email,
@@ -252,22 +250,20 @@ describe('Expenses Route Handlers & Zero-Trust Creator Ownership (Integration)',
 
     const receiptReq = new NextRequest(`http://localhost:3000/api/expenses/${testExpenseId}/receipts`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fileName: 'legit_receipt.pdf',
-        mimeType: 'application/pdf',
-        fileSizeBytes: 2048,
-        sha256: 'cafebeef' + Date.now().toString().padEnd(56, '0'),
-      }),
+      body: (() => {
+        const formData = new FormData()
+        formData.set('file', new File([Buffer.from('%PDF-1.7\\nlegitimate test receipt')], 'legit_receipt.pdf', { type: 'application/pdf' }))
+        return formData
+      })(),
     })
 
     const receiptRes = await addReceiptHandler(receiptReq, {
       params: Promise.resolve({ id: testExpenseId }),
     })
-    expect(receiptRes.status).toBe(201)
+    expect(receiptRes.status).toBe(503)
     const json = await receiptRes.json()
-    expect(json.success).toBe(true)
-    expect(json.data.uploadedByUserId).toBe(codingRepUser.id)
+    expect(json.success).toBe(false)
+    expect(json.error.code).toBe('STORAGE_NOT_CONFIGURED')
   })
 
   it('creator can submit expense and ACM Core can approve it', async () => {

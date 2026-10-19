@@ -60,7 +60,7 @@ function ExpensesContent() {
 
   useEffect(() => {
     if (session) {
-      if (user?.role === 'VIEWER') {
+      if (user?.role === 'VIEWER' || user?.role === 'MEMBER') {
         setError('Viewers do not have permission to inspect expense ledgers.')
         setLoading(false)
       } else {

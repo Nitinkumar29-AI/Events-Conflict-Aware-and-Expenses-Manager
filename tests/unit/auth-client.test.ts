@@ -46,6 +46,14 @@ describe('Frontend RBAC Client Permissions (canClient) Unit Tests', () => {
     expect(canClient('VIEWER', 'ACKNOWLEDGE_CONFLICT')).toBe(false)
   })
 
+  it('MEMBER only has read permissions for calendar and events', () => {
+    expect(canClient('MEMBER', 'VIEW_CALENDAR')).toBe(true)
+    expect(canClient('MEMBER', 'VIEW_EVENT')).toBe(true)
+    expect(canClient('MEMBER', 'CREATE_EVENT')).toBe(false)
+    expect(canClient('MEMBER', 'CREATE_EXPENSE')).toBe(false)
+    expect(canClient('MEMBER', 'ACKNOWLEDGE_CONFLICT')).toBe(false)
+  })
+
   it('returns false for undefined role or action', () => {
     expect(canClient(undefined, 'VIEW_CALENDAR')).toBe(false)
     expect(canClient('CLUB_REP', undefined)).toBe(false)

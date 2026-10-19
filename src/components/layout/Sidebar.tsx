@@ -49,7 +49,7 @@ type NavItem = {
   count?: number
 }
 
-  const isViewer = role === 'VIEWER'
+  const isViewer = role === 'VIEWER' || role === 'MEMBER'
   const canViewBudgets = role === 'SUPER_ADMIN' || role === 'ACM_CORE' || role === 'ACM_EXEC'
 
   const navGroups: { group: string; items: NavItem[] }[] = [

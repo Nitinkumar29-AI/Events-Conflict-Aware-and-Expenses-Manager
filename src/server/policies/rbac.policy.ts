@@ -110,6 +110,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Action[]> = {
     'VIEW_CALENDAR',
     'VIEW_EVENT',
   ],
+
+  MEMBER: [
+    'VIEW_CALENDAR',
+    'VIEW_EVENT',
+  ],
 }
 
 /**
@@ -134,7 +139,7 @@ export function can(
  * - SUPER_ADMIN & ACM_CORE: Have institutional jurisdiction across all clubs.
  * - ACM_EXEC: Can only act for ACM (or their assigned club).
  * - CLUB_REP: Strictly isolated to their authenticated clubId.
- * - VIEWER: Has no club administration access.
+ * - MEMBER and VIEWER: Have no club administration access.
  */
 export function canAccessClub(
   user: SessionUser | null | undefined,
@@ -333,7 +338,7 @@ export function assertCanAccessClub(
  * Resource-aware archive access check.
  * - SUPER_ADMIN, ACM_CORE, ACM_EXEC: Have institutional archive access.
  * - CLUB_REP: Permitted if archive query is scoped to their own club.
- * - VIEWER: Denied.
+ * - MEMBER and VIEWER: Denied.
  */
 export function canViewArchive(
   user: SessionUser | null | undefined,
@@ -353,7 +358,7 @@ export function canViewArchive(
  * Resource-aware reports access check.
  * - SUPER_ADMIN, ACM_CORE, ACM_EXEC: Have institutional reports access.
  * - CLUB_REP: Permitted if reports query is scoped to their own club.
- * - VIEWER: Denied.
+ * - MEMBER and VIEWER: Denied.
  */
 export function canViewReports(
   user: SessionUser | null | undefined,

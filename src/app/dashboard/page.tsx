@@ -46,7 +46,7 @@ export default async function DashboardPage() {
   const isCoreAdmin =
     user.role === 'SUPER_ADMIN' || user.role === 'ACM_CORE' || user.role === 'ACM_EXEC'
   const isClubRep = user.role === 'CLUB_REP' && !!user.clubId
-  const isViewer = user.role === 'VIEWER'
+  const isViewer = user.role === 'VIEWER' || user.role === 'MEMBER'
 
   // Metric counts
   let eventCount = 0

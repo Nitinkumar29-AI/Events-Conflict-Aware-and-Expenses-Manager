@@ -17,6 +17,7 @@ describe('Phase 3 EventService Integration Tests', () => {
   let acmExecUser: SessionUser
   let codingClubRepUser: SessionUser
   let roboticsClubRepUser: SessionUser
+  let memberUser: SessionUser
   let viewerUser: SessionUser
 
   let acmClubId: string
@@ -28,13 +29,14 @@ describe('Phase 3 EventService Integration Tests', () => {
 
   beforeAll(async () => {
     // Fetch seeded users
-    const [sa, core, exec, codingRep, roboticsRep, viewer] = await Promise.all([
+    const [sa, core, exec, codingRep, roboticsRep, viewer, member] = await Promise.all([
       prisma.user.findUniqueOrThrow({ where: { email: 'superadmin@acm-demo.college.edu' } }),
       prisma.user.findUniqueOrThrow({ where: { email: 'core@acm-demo.college.edu' } }),
       prisma.user.findUniqueOrThrow({ where: { email: 'exec@acm-demo.college.edu' } }),
       prisma.user.findUniqueOrThrow({ where: { email: 'rep.coding@acm-demo.college.edu' } }),
       prisma.user.findUniqueOrThrow({ where: { email: 'rep.robotics@acm-demo.college.edu' } }),
       prisma.user.findUniqueOrThrow({ where: { email: 'viewer@acm-demo.college.edu' } }),
+      prisma.user.findUniqueOrThrow({ where: { email: 'member@acm-demo.college.edu' } }),
     ])
 
     superAdminUser = { id: sa.id, email: sa.email, name: sa.name, role: sa.role, clubId: sa.clubId }
@@ -43,6 +45,7 @@ describe('Phase 3 EventService Integration Tests', () => {
     codingClubRepUser = { id: codingRep.id, email: codingRep.email, name: codingRep.name, role: codingRep.role, clubId: codingRep.clubId }
     roboticsClubRepUser = { id: roboticsRep.id, email: roboticsRep.email, name: roboticsRep.name, role: roboticsRep.role, clubId: roboticsRep.clubId }
     viewerUser = { id: viewer.id, email: viewer.email, name: viewer.name, role: viewer.role, clubId: viewer.clubId }
+    memberUser = { id: member.id, email: member.email, name: member.name, role: member.role, clubId: member.clubId }
 
     // Fetch seeded clubs, venues, semesters
     const [acm, cc, rc, lt1, currSem, lockSem] = await Promise.all([
@@ -493,11 +496,23 @@ describe('Phase 3 EventService Integration Tests', () => {
       expect(demoEvent?.extendedProps.venueName).toBe('Lecture Theatre 1 (LT-1)')
       expect(demoEvent?.extendedProps.targetYears).toEqual([2])
       expect(demoEvent?.extendedProps.targetBranches).toEqual(['CSE', 'IT'])
+      expect(demoEvent?.extendedProps.unresolvedConflictCount).toBeGreaterThan(0)
     })
 
     it('isolates VIEWER calendar visibility to VERIFIED and COMPLETED events only', async () => {
       // DRAFT or SUBMITTED events must NOT appear for viewer
       const calEvents = await eventService.getCalendarEvents(viewerUser, {
+        from: '2026-09-01T00:00:00.000Z',
+        to: '2026-09-30T23:59:59.999Z',
+      })
+
+      for (const ev of calEvents) {
+        expect([EventStatus.VERIFIED, EventStatus.COMPLETED]).toContain(ev.extendedProps.status)
+      }
+    })
+
+    it('gives MEMBER the same published-event-only calendar visibility', async () => {
+      const calEvents = await eventService.getCalendarEvents(memberUser, {
         from: '2026-09-01T00:00:00.000Z',
         to: '2026-09-30T23:59:59.999Z',
       })

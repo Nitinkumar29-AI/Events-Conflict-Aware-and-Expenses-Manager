@@ -9,8 +9,8 @@ export async function GET(req: NextRequest) {
   try {
     const user = await requireUser()
 
-    if (user.role === 'VIEWER') {
-      throw new ForbiddenError('Viewers cannot view conflicts.')
+    if (user.role === 'VIEWER' || user.role === 'MEMBER') {
+      throw new ForbiddenError('Members and viewers cannot view conflicts.')
     }
 
     const { searchParams } = req.nextUrl

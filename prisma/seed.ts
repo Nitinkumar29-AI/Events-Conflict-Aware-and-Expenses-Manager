@@ -1,4 +1,12 @@
-import { PrismaClient, UserRole, EventType, EventStatus, ExpenseStatus, AuditAction } from '@prisma/client'
+import {
+  PrismaClient,
+  UserRole,
+  EventType,
+  EventStatus,
+  ExpenseStatus,
+  AuditAction,
+  type User,
+} from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { ConflictService } from '../src/server/services/conflict.service'
 import { SessionUser } from '../src/server/types'
@@ -166,9 +174,15 @@ async function main() {
       role: UserRole.VIEWER,
       clubId: null,
     },
+    {
+      email: 'member@acm-demo.college.edu',
+      name: 'Campus Member (Demo)',
+      role: UserRole.MEMBER,
+      clubId: null,
+    },
   ]
 
-  const usersMap: Record<string, any> = {}
+  const usersMap: Record<string, User> = {}
 
   for (const acc of demoAccounts) {
     const u = await prisma.user.upsert({
@@ -848,7 +862,7 @@ async function main() {
   console.log('✅ Idempotent minimal demo seed completed successfully!')
   console.log('📊 Verified Database Summary:')
   console.log(`  Clubs: ${counts.clubs} (ACM, CC, RC, GDSC, ECELL)`)
-  console.log(`  Users: ${counts.users} (8 demo accounts, password: "${DEMO_PASSWORD}")`)
+  console.log(`  Users: ${counts.users} (9 demo accounts, password: "${DEMO_PASSWORD}")`)
   console.log(`  Venues: ${counts.venues} (LT-1, LT-2, Seminar Hall, Auditorium, Lab 1, Lab 2, Amphitheater)`)
   console.log(`  Semesters: ${counts.semesters} (Even 2025-26 [Locked], Odd 2026-27 [Active])`)
   console.log(`  Expense Categories: ${counts.categories}`)

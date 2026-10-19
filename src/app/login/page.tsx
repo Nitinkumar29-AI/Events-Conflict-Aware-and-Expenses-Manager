@@ -75,6 +75,7 @@ export default function LoginPage() {
     { role: 'ACM_CORE', email: 'core@acm-demo.college.edu', label: 'ACM Core Lead' },
     { role: 'ACM_EXEC', email: 'exec@acm-demo.college.edu', label: 'ACM Executive' },
     { role: 'CLUB_REP', email: 'rep.coding@acm-demo.college.edu', label: 'Coding Club Rep' },
+    { role: 'MEMBER', email: 'member@acm-demo.college.edu', label: 'Campus Member' },
     { role: 'VIEWER', email: 'viewer@acm-demo.college.edu', label: 'Public Viewer' },
   ]
 

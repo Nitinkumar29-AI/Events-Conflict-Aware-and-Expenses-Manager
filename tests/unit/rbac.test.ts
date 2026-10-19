@@ -175,6 +175,18 @@ describe('RBAC Policy Matrix Unit Tests', () => {
     })
   })
 
+  describe('MEMBER permissions', () => {
+    const user = { role: UserRole.MEMBER }
+
+    it('can only view the published calendar and events', () => {
+      expect(can(user, 'VIEW_CALENDAR')).toBe(true)
+      expect(can(user, 'VIEW_EVENT')).toBe(true)
+      for (const action of allActions.filter((action) => !['VIEW_CALENDAR', 'VIEW_EVENT'].includes(action))) {
+        expect(can(user, action), `MEMBER must NOT be able to ${action}`).toBe(false)
+      }
+    })
+  })
+
   describe('Anonymous / Null User handling', () => {
     it('returns false when user is null or undefined', () => {
       expect(can(null, 'VIEW_CALENDAR')).toBe(false)

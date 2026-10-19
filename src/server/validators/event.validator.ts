@@ -7,6 +7,7 @@ const isoDateSchema = z.string().datetime({ message: 'Must be a valid ISO-8601 U
 export const createEventSchema = z
   .object({
     title: z.string().min(3, 'Title must be at least 3 characters').max(200, 'Title cannot exceed 200 characters'),
+    organizerName: z.string().trim().min(2).max(120).optional(),
     description: z.string().max(2000, 'Description cannot exceed 2000 characters').optional().nullable(),
     eventType: z.nativeEnum(EventType).default(EventType.OTHER),
     clubId: z.string().min(1, 'Organizing clubId is required'),
@@ -35,6 +36,7 @@ export const createEventSchema = z
 export const updateEventSchema = z
   .object({
     title: z.string().min(3).max(200).optional(),
+    organizerName: z.string().trim().min(2).max(120).optional(),
     description: z.string().max(2000).optional().nullable(),
     eventType: z.nativeEnum(EventType).optional(),
     venueId: z.string().min(1).optional(),

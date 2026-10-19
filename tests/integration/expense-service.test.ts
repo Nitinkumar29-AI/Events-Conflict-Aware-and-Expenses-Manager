@@ -1,11 +1,22 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 import { PrismaClient, UserRole, ExpenseStatus, AuditAction } from '@prisma/client'
 import { expenseService } from '@/server/services/expense.service'
 import { receiptService } from '@/server/services/receipt.service'
 import { ForbiddenError, NotFoundError, BusinessRuleError, SemesterLockedError } from '@/server/lib/errors'
+import { env } from '@/server/config/env'
 import type { SessionUser } from '@/server/types'
 
 const prisma = new PrismaClient()
+const originalCloudinaryConfig = {
+  CLOUDINARY_CLOUD_NAME: env.CLOUDINARY_CLOUD_NAME,
+  CLOUDINARY_API_KEY: env.CLOUDINARY_API_KEY,
+  CLOUDINARY_API_SECRET: env.CLOUDINARY_API_SECRET,
+}
+
+afterEach(() => {
+  Object.assign(env, originalCloudinaryConfig)
+  vi.unstubAllGlobals()
+})
 
 describe('Phase 5 ExpenseService Integration Tests', () => {
   let superAdminUser: SessionUser
@@ -200,50 +211,70 @@ describe('Phase 5 ExpenseService Integration Tests', () => {
       testExpId = exp.id
     })
 
-    it('allows owner to add receipt', async () => {
-      const sha = 'a' + Date.now().toString().padEnd(63, '0')
-      const r = await receiptService.addReceipt(codingClubRepUser, testExpId, {
-        fileUrl: 'http://example.com/receipt.pdf',
-        storagePublicId: 'receipt.pdf',
-        fileName: 'receipt.pdf',
-        mimeType: 'application/pdf',
-        fileSizeBytes: 1024,
-        sha256: sha
+    it('uploads a validated receipt to Cloudinary for the expense owner', async () => {
+      Object.assign(env, {
+        CLOUDINARY_CLOUD_NAME: 'test-cloud',
+        CLOUDINARY_API_KEY: 'test-key',
+        CLOUDINARY_API_SECRET: 'test-secret',
       })
+      const file = new File([`%PDF-1.7\nReceipt ${crypto.randomUUID()}`], 'receipt.pdf', {
+        type: 'application/pdf',
+      })
+      const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        const body = init?.body as FormData
+        const folder = String(body.get('folder'))
+        const publicId = String(body.get('public_id'))
+        return Response.json({
+          secure_url: `https://res.cloudinary.com/test-cloud/raw/upload/${publicId}`,
+          public_id: `${folder}/${publicId}`,
+          bytes: file.size,
+          resource_type: 'raw',
+        })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      const r = await receiptService.uploadReceipt(codingClubRepUser, testExpId, file)
       expect(r.id).toBeDefined()
+      expect(r.fileUrl).toContain('https://res.cloudinary.com/')
+      expect(fetchMock).toHaveBeenCalledOnce()
     })
 
     it('rejects duplicate SHA256 receipt', async () => {
-      const sha = 'b' + Date.now().toString().padEnd(63, '0')
-      await receiptService.addReceipt(codingClubRepUser, testExpId, {
-        fileUrl: 'http://example.com/receipt2.pdf',
-        storagePublicId: 'receipt2.pdf',
-        fileName: 'receipt2.pdf',
-        mimeType: 'application/pdf',
-        fileSizeBytes: 1024,
-        sha256: sha
+      Object.assign(env, {
+        CLOUDINARY_CLOUD_NAME: 'test-cloud',
+        CLOUDINARY_API_KEY: 'test-key',
+        CLOUDINARY_API_SECRET: 'test-secret',
       })
-      
-      await expect(receiptService.addReceipt(codingClubRepUser, testExpId, {
-        fileUrl: 'http://example.com/receipt3.pdf',
-        storagePublicId: 'receipt3.pdf',
-        fileName: 'receipt3.pdf',
-        mimeType: 'application/pdf',
-        fileSizeBytes: 1024,
-        sha256: sha
-      })).rejects.toThrow(BusinessRuleError)
+      const file = new File([`%PDF-1.7\nDuplicate ${crypto.randomUUID()}`], 'receipt.pdf', {
+        type: 'application/pdf',
+      })
+      const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        const body = init?.body as FormData
+        const folder = String(body.get('folder'))
+        const publicId = String(body.get('public_id'))
+        return Response.json({
+          secure_url: `https://res.cloudinary.com/test-cloud/raw/upload/${publicId}`,
+          public_id: `${folder}/${publicId}`,
+          bytes: file.size,
+          resource_type: 'raw',
+        })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      await receiptService.uploadReceipt(codingClubRepUser, testExpId, file)
+      await expect(
+        receiptService.uploadReceipt(codingClubRepUser, testExpId, file)
+      ).rejects.toThrow(BusinessRuleError)
+      expect(fetchMock).toHaveBeenCalledOnce()
     })
 
     it('prevents another club from adding receipt', async () => {
-      const sha = 'c' + Date.now().toString().padEnd(63, '0')
-      await expect(receiptService.addReceipt(roboticsClubRepUser, testExpId, {
-        fileUrl: 'http://example.com/receipt4.pdf',
-        storagePublicId: 'receipt4.pdf',
-        fileName: 'receipt4.pdf',
-        mimeType: 'application/pdf',
-        fileSizeBytes: 1024,
-        sha256: sha
-      })).rejects.toThrow(ForbiddenError)
+      const file = new File([`%PDF-1.7\nUnauthorized ${crypto.randomUUID()}`], 'receipt.pdf', {
+        type: 'application/pdf',
+      })
+      await expect(
+        receiptService.uploadReceipt(roboticsClubRepUser, testExpId, file)
+      ).rejects.toThrow(ForbiddenError)
     })
   })
 

@@ -454,8 +454,8 @@ export class ExpenseService {
       if (query.clubId && query.clubId !== targetClubId) {
         throw new ForbiddenError('Cannot query expenses for another club.')
       }
-    } else if (user.role === 'VIEWER') {
-      throw new ForbiddenError('Viewers cannot query expenses.')
+    } else if (user.role === 'VIEWER' || user.role === 'MEMBER') {
+      throw new ForbiddenError('Members and viewers cannot query expenses.')
     }
 
     const where: Prisma.ExpenseWhereInput = {

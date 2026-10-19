@@ -25,6 +25,14 @@ export const envSchema = z
       .string()
       .url('NEXT_PUBLIC_APP_URL must be a valid URL')
       .default('http://localhost:3000'),
+    AGENT_ASSISTANT_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().url().optional()
+    ),
+    AGENT_ASSISTANT_TOKEN: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(32).optional()
+    ),
     TZ_APP: z.string().default('Asia/Kolkata'),
     ALLOWED_EMAIL_DOMAIN: z.string().optional(),
 
@@ -38,6 +46,14 @@ export const envSchema = z
     CLOUDINARY_API_SECRET: z.string().optional(),
   })
   .superRefine((data, ctx) => {
+    if (Boolean(data.AGENT_ASSISTANT_URL) !== Boolean(data.AGENT_ASSISTANT_TOKEN)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [data.AGENT_ASSISTANT_URL ? 'AGENT_ASSISTANT_TOKEN' : 'AGENT_ASSISTANT_URL'],
+        message: 'AGENT_ASSISTANT_URL and AGENT_ASSISTANT_TOKEN must be configured together.',
+      })
+    }
+
     // 1. Auth secret and production URL enforcement
     const secret = data.AUTH_SECRET || data.NEXTAUTH_SECRET
     if (data.NODE_ENV === 'production') {
@@ -171,6 +187,8 @@ export function getValidatedEnv(rawEnv: Record<string, string | undefined> = pro
         DATABASE_URL: rawEnv.DATABASE_URL || 'postgresql://localhost:5432/acm_incursion',
         AUTH_SECRET: rawEnv.AUTH_SECRET || rawEnv.NEXTAUTH_SECRET || 'acm-incursion-jwt-secret-dev-2026',
         NEXT_PUBLIC_APP_URL: rawEnv.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        AGENT_ASSISTANT_URL: rawEnv.AGENT_ASSISTANT_URL,
+        AGENT_ASSISTANT_TOKEN: rawEnv.AGENT_ASSISTANT_TOKEN,
         TZ_APP: rawEnv.TZ_APP || 'Asia/Kolkata',
         ALLOWED_EMAIL_DOMAIN: rawEnv.ALLOWED_EMAIL_DOMAIN,
         GOOGLE_CLIENT_ID: rawEnv.GOOGLE_CLIENT_ID,

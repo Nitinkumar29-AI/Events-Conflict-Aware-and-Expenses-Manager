@@ -10,7 +10,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { Breadcrumbs } from '@/components/ui/Breadcrumbs'
 import { AlertBanner, LoadingSpinner } from '@/components/ui/Feedback'
 import { fetchApi } from '@/lib/api'
-import { Calendar as CalendarIcon, Info, Sparkles } from 'lucide-react'
+import { AlertTriangle, Info } from 'lucide-react'
 
 interface CalendarEventItem {
   id: string
@@ -27,6 +27,8 @@ interface CalendarEventItem {
     eventType: string
     expectedAttendees: number
     organizer: string
+    unresolvedConflictCount: number
+    highestConflictSeverity: string | null
   }
 }
 
@@ -54,6 +56,7 @@ export default function CalendarPage() {
       const mapped = (res.data || []).map((ev) => {
         let backgroundColor = '#4f46e5' // Indigo for verified/default
         let borderColor = '#4338ca'
+        const hasConflict = ev.extendedProps.unresolvedConflictCount > 0
 
         if (ev.extendedProps?.status === 'SUBMITTED') {
           backgroundColor = '#d97706' // Amber
@@ -66,15 +69,24 @@ export default function CalendarPage() {
           borderColor = '#0369a1'
         }
 
+        if (hasConflict) {
+          borderColor = '#dc2626'
+        }
+
         return {
           id: ev.id,
-          title: `[${ev.extendedProps?.clubCode || 'CLUB'}] ${ev.title} @ ${ev.extendedProps?.venueName || 'Venue'}`,
+          title: `${hasConflict ? '! ' : ''}[${ev.extendedProps?.clubCode || 'CLUB'}] ${ev.title} @ ${ev.extendedProps?.venueName || 'Venue'}`,
           start: ev.start,
           end: ev.end,
           backgroundColor,
           borderColor,
           textColor: '#ffffff',
           extendedProps: ev.extendedProps,
+          ...(hasConflict
+            ? {
+                classNames: ['calendar-conflict-event'],
+              }
+            : {}),
         }
       })
 
@@ -132,6 +144,10 @@ export default function CalendarPage() {
               <span className="w-2.5 h-2.5 rounded-full bg-sky-600"></span>
               <span>Completed</span>
             </span>
+            <span className="flex items-center gap-1.5 font-medium text-rose-700">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>Unresolved conflict</span>
+            </span>
           </div>
         </div>
 
@@ -157,6 +173,14 @@ export default function CalendarPage() {
               events={events}
               datesSet={handleDatesSet}
               eventClick={handleEventClick}
+              eventDidMount={(info) => {
+                const { unresolvedConflictCount, highestConflictSeverity } = info.event.extendedProps
+                if (unresolvedConflictCount > 0) {
+                  const label = `${highestConflictSeverity || 'Potential'} conflict: ${unresolvedConflictCount} unresolved clash(es)`
+                  info.el.title = label
+                  info.el.setAttribute('aria-label', `${info.event.title}. ${label}`)
+                }
+              }}
               height="auto"
               dayMaxEvents={3}
               eventTimeFormat={{

@@ -211,8 +211,8 @@ export class ArchiveService {
       throw new ForbiddenError(`Cannot inspect historical event details for club '${event.clubId}'.`)
     }
 
-    if (user.role === 'VIEWER') {
-      throw new ForbiddenError('Viewers cannot inspect institutional historical event details.')
+    if (user.role === 'VIEWER' || user.role === 'MEMBER') {
+      throw new ForbiddenError('Members and viewers cannot inspect institutional historical event details.')
     }
 
     // Audit logs for event (only for SUPER_ADMIN or ACM_CORE)

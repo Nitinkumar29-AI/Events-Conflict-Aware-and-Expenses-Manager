@@ -3,6 +3,7 @@ export type UserRoleType =
   | 'ACM_CORE'
   | 'ACM_EXEC'
   | 'CLUB_REP'
+  | 'MEMBER'
   | 'VIEWER'
 
 export type ClientAction =
@@ -98,6 +99,10 @@ export const ROLE_PERMISSIONS: Record<UserRoleType, readonly ClientAction[]> = {
     'UPDATE_EXPENSE',
   ],
   VIEWER: [
+    'VIEW_CALENDAR',
+    'VIEW_EVENT',
+  ],
+  MEMBER: [
     'VIEW_CALENDAR',
     'VIEW_EVENT',
   ],

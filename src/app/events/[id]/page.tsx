@@ -38,6 +38,7 @@ import {
 export interface EventDetail {
   id: string
   title: string
+  organizerName: string
   description: string | null
   eventType: string
   status: string
@@ -90,6 +91,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
 
   const { data: session } = useSession()
   const user = session?.user
+  const canViewConflicts = user?.role !== 'VIEWER' && user?.role !== 'MEMBER'
 
   const [event, setEvent] = useState<EventDetail | null>(null)
   const [conflicts, setConflicts] = useState<ConflictItem[]>([])
@@ -120,10 +122,12 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
     try {
       const [evRes, confRes] = await Promise.all([
         fetchApi<EventDetail>(`/api/events/${eventId}`),
-        fetchApi<ConflictItem[]>(`/api/events/${eventId}/conflicts`),
+        canViewConflicts
+          ? fetchApi<ConflictItem[]>(`/api/events/${eventId}/conflicts`)
+          : Promise.resolve(null),
       ])
       setEvent(evRes.data)
-      setConflicts(confRes.data || [])
+      setConflicts(confRes?.data || [])
     } catch (err: any) {
       setError(err.message || 'Failed to load event details.')
     } finally {
@@ -423,14 +427,16 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
               )}
 
               {/* Conflict Scan Button */}
-              <button
-                onClick={handleDetectConflicts}
-                disabled={detecting}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
-              >
-                <Search className="w-3.5 h-3.5" />
-                {detecting ? 'Scanning Engine...' : 'Detect Conflicts'}
-              </button>
+              {canViewConflicts && (
+                <button
+                  onClick={handleDetectConflicts}
+                  disabled={detecting}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  {detecting ? 'Scanning Engine...' : 'Detect Conflicts'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -446,7 +452,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </div>
 
-        {/* Conflict Detection Engine Panel */}
+        {canViewConflicts && (
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2.5">
@@ -586,6 +592,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           )}
         </div>
+        )}
 
         {/* Event Specification Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -597,6 +604,12 @@ export default function EventDetailPage({ params }: { params: Promise<{ id: stri
             </h3>
 
             <div className="space-y-3 text-xs">
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-400 font-medium">Organizer:</span>
+                <span className="font-semibold text-slate-800">
+                  {event.organizerName || event.club?.name}
+                </span>
+              </div>
               <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-400 font-medium">Submitted By:</span>
                 <span className="font-semibold text-slate-800">

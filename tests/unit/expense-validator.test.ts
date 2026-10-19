@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { CreateExpenseSchema } from '@/server/validators/expense.validator'
-import { UploadReceiptMetadataSchema } from '@/server/validators/receipt.validator'
+import { ReceiptFileSchema } from '@/server/validators/receipt.validator'
 
 describe('Expense Validator', () => {
   it('validates a correct expense', () => {
@@ -35,21 +35,18 @@ describe('Expense Validator', () => {
 })
 describe('Receipt Validator', () => {
   it('accepts valid PDF', () => {
-    expect(UploadReceiptMetadataSchema.safeParse({ fileName: 'a.pdf', mimeType: 'application/pdf', fileSizeBytes: 1000, sha256: 'a'.repeat(64) }).success).toBe(true)
+    expect(ReceiptFileSchema.safeParse({ mimeType: 'application/pdf', fileSizeBytes: 1000 }).success).toBe(true)
   })
   it('accepts valid JPG', () => {
-    expect(UploadReceiptMetadataSchema.safeParse({ fileName: 'a.jpg', mimeType: 'image/jpeg', fileSizeBytes: 1000, sha256: 'a'.repeat(64) }).success).toBe(true)
+    expect(ReceiptFileSchema.safeParse({ mimeType: 'image/jpeg', fileSizeBytes: 1000 }).success).toBe(true)
   })
   it('accepts valid PNG', () => {
-    expect(UploadReceiptMetadataSchema.safeParse({ fileName: 'a.png', mimeType: 'image/png', fileSizeBytes: 1000, sha256: 'a'.repeat(64) }).success).toBe(true)
+    expect(ReceiptFileSchema.safeParse({ mimeType: 'image/png', fileSizeBytes: 1000 }).success).toBe(true)
   })
   it('rejects > 5MB', () => {
-    expect(UploadReceiptMetadataSchema.safeParse({ fileName: 'a.pdf', mimeType: 'application/pdf', fileSizeBytes: 6 * 1024 * 1024, sha256: 'a'.repeat(64) }).success).toBe(false)
+    expect(ReceiptFileSchema.safeParse({ mimeType: 'application/pdf', fileSizeBytes: 6 * 1024 * 1024 }).success).toBe(false)
   })
   it('rejects unsupported mime type', () => {
-    expect(UploadReceiptMetadataSchema.safeParse({ fileName: 'a.exe', mimeType: 'application/x-msdownload', fileSizeBytes: 1000, sha256: 'a'.repeat(64) }).success).toBe(false)
-  })
-  it('rejects invalid sha256', () => {
-    expect(UploadReceiptMetadataSchema.safeParse({ fileName: 'a.pdf', mimeType: 'application/pdf', fileSizeBytes: 1000, sha256: 'short' }).success).toBe(false)
+    expect(ReceiptFileSchema.safeParse({ mimeType: 'application/x-msdownload', fileSizeBytes: 1000 }).success).toBe(false)
   })
 })

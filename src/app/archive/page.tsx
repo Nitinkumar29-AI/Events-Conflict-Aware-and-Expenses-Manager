@@ -73,7 +73,7 @@ export default function ArchivePage() {
 
   // Redirect viewer
   useEffect(() => {
-    if (role === 'VIEWER') {
+    if (role === 'VIEWER' || role === 'MEMBER') {
       router.push('/dashboard')
     }
   }, [role, router])
@@ -146,7 +146,7 @@ export default function ArchivePage() {
   }
 
   useEffect(() => {
-    if (!session?.user || role === 'VIEWER') return
+    if (!session?.user || role === 'VIEWER' || role === 'MEMBER') return
     if (activeTab === 'events') {
       loadEvents()
     } else if (activeTab === 'conflicts') {

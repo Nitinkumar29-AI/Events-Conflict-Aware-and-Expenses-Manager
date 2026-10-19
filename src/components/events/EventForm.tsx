@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { fetchApi, ApiError } from '@/lib/api'
+import { Button } from '@/components/ui/button'
 import { AlertBanner, LoadingSpinner } from '@/components/ui/Feedback'
 import {
   Users,
@@ -39,6 +40,9 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
 
   // Form fields
   const [title, setTitle] = useState(initialData?.title || '')
+  const [organizerName, setOrganizerName] = useState(
+    initialData?.organizerName || initialData?.submittedBy?.name || ''
+  )
   const [description, setDescription] = useState(initialData?.description || '')
   const [eventType, setEventType] = useState(initialData?.eventType || 'WORKSHOP')
   const [clubId, setClubId] = useState(initialData?.clubId || user?.clubId || '')
@@ -126,6 +130,7 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
 
     const payload: any = {
       title: title.trim(),
+      organizerName: organizerName.trim(),
       description: description.trim() || undefined,
       eventType,
       venueId,
@@ -219,6 +224,24 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
             />
             {fieldErrors.title && (
               <p className="text-xs text-rose-600 mt-1 font-medium">{fieldErrors.title}</p>
+            )}
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+              Organizer Name *
+            </label>
+            <input
+              type="text"
+              required
+              maxLength={120}
+              value={organizerName}
+              onChange={(e) => setOrganizerName(e.target.value)}
+              placeholder="Person responsible for organizing this event"
+              className="w-full text-xs sm:text-sm border border-slate-200 rounded-lg px-3.5 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-none"
+            />
+            {fieldErrors.organizerName && (
+              <p className="text-xs text-rose-600 mt-1 font-medium">{fieldErrors.organizerName}</p>
             )}
           </div>
 
@@ -473,13 +496,14 @@ export function EventForm({ initialData, isEdit = false }: EventFormProps) {
         >
           Cancel
         </button>
-        <button
+        <Button
           type="submit"
           disabled={submitting}
-          className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs disabled:opacity-50 transition-colors flex items-center gap-2"
+          size="sm"
+          className="px-5 shadow-xs"
         >
           {submitting ? 'Saving Event...' : isEdit ? 'Save Changes' : 'Create Event (Draft)'}
-        </button>
+        </Button>
       </div>
     </form>
   )

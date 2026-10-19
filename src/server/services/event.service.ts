@@ -2,6 +2,7 @@ import prisma from '@/server/lib/prisma'
 import { conflictService } from './conflict.service'
 import { notificationService } from './notification.service'
 import {
+  ConflictStatus,
   EventStatus,
   ReviewDecision,
   AuditAction,
@@ -48,6 +49,8 @@ export interface FullCalendarEvent {
     targetYears: number[]
     targetBranches: string[]
     organizer: string
+    unresolvedConflictCount: number
+    highestConflictSeverity: string | null
   }
 }
 
@@ -96,6 +99,7 @@ export class EventService {
       const event = await tx.event.create({
         data: {
           title: input.title,
+          organizerName: input.organizerName || user.name,
           description: input.description ?? null,
           eventType: input.eventType,
           clubId: input.clubId,
@@ -183,7 +187,7 @@ export class EventService {
     }
 
     // Role-based visibility isolation
-    if (user.role === UserRole.VIEWER) {
+    if (user.role === UserRole.VIEWER || user.role === UserRole.MEMBER) {
       where.status = { in: [EventStatus.VERIFIED, EventStatus.COMPLETED] }
     } else if (user.role === UserRole.CLUB_REP && user.clubId) {
       // Rep sees verified/completed events + any event belonging to their own club
@@ -261,7 +265,7 @@ export class EventService {
     }
 
     // Visibility boundary: Viewers cannot see unverified draft/rejected events
-    if (user.role === UserRole.VIEWER) {
+    if (user.role === UserRole.VIEWER || user.role === UserRole.MEMBER) {
       if (event.status !== EventStatus.VERIFIED && event.status !== EventStatus.COMPLETED) {
         throw new NotFoundError('Event', eventId)
       }
@@ -320,6 +324,7 @@ export class EventService {
         where: { id: eventId },
         data: {
           title: input.title ?? event.title,
+          organizerName: input.organizerName ?? event.organizerName,
           description: input.description !== undefined ? input.description : event.description,
           eventType: input.eventType ?? event.eventType,
           venueId: input.venueId ?? event.venueId,
@@ -347,11 +352,13 @@ export class EventService {
           targetId: eventId,
           beforeState: {
             title: event.title,
+            organizerName: event.organizerName,
             startAt: event.startAt.toISOString(),
             endAt: event.endAt.toISOString(),
           },
           afterState: {
             title: updated.title,
+            organizerName: updated.organizerName,
             startAt: updated.startAt.toISOString(),
             endAt: updated.endAt.toISOString(),
           },
@@ -726,7 +733,7 @@ export class EventService {
     }
 
     // Role-based visibility
-    if (user.role === UserRole.VIEWER) {
+    if (user.role === UserRole.VIEWER || user.role === UserRole.MEMBER) {
       where.status = { in: [EventStatus.VERIFIED, EventStatus.COMPLETED] }
     } else if (user.role === UserRole.CLUB_REP && user.clubId) {
       where.OR = [
@@ -750,6 +757,35 @@ export class EventService {
       take: 500, // Safe bounded query to prevent memory exhaustion
     })
 
+    const visibleEventIds = events.map((event) => event.id)
+    const conflicts = visibleEventIds.length
+      ? await prisma.conflictRecord.findMany({
+          where: {
+            status: { in: [ConflictStatus.OPEN, ConflictStatus.ACKNOWLEDGED] },
+            eventAId: { in: visibleEventIds },
+            eventBId: { in: visibleEventIds },
+          },
+          select: {
+            eventAId: true,
+            eventBId: true,
+            severity: true,
+          },
+        })
+      : []
+    const conflictSummary = new Map<string, { count: number; severity: string | null }>()
+    const severityRank: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3 }
+
+    for (const conflict of conflicts) {
+      for (const eventId of [conflict.eventAId, conflict.eventBId]) {
+        const summary = conflictSummary.get(eventId) || { count: 0, severity: null }
+        summary.count += 1
+        if (!summary.severity || severityRank[conflict.severity] > severityRank[summary.severity]) {
+          summary.severity = conflict.severity
+        }
+        conflictSummary.set(eventId, summary)
+      }
+    }
+
     return events.map((e) => ({
       id: e.id,
       title: e.title,
@@ -766,7 +802,9 @@ export class EventService {
         expectedAttendees: e.expectedAttendees,
         targetYears: e.targetYears,
         targetBranches: e.targetBranches,
-        organizer: e.club.name,
+        organizer: e.organizerName || e.club.name,
+        unresolvedConflictCount: conflictSummary.get(e.id)?.count || 0,
+        highestConflictSeverity: conflictSummary.get(e.id)?.severity || null,
       },
     }))
   }

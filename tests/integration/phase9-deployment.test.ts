@@ -23,6 +23,40 @@ describe('Phase 9 — Deployment Readiness, Hardening & Operational Reliability 
       expect(result.data?.AUTH_SECRET).toBe(validConfig.AUTH_SECRET)
     })
 
+    it('accepts an optional conflict assistant only when its URL and shared token are paired', () => {
+      const baseConfig = {
+        NODE_ENV: 'development',
+        DATABASE_URL: 'postgresql://localhost:5432/acm',
+      }
+      const disabled = validateEnv({
+        ...baseConfig,
+        AGENT_ASSISTANT_URL: '',
+        AGENT_ASSISTANT_TOKEN: '',
+      })
+      expect(disabled.success).toBe(true)
+
+      const configured = validateEnv({
+        ...baseConfig,
+        AGENT_ASSISTANT_URL: 'http://127.0.0.1:8010',
+        AGENT_ASSISTANT_TOKEN: 'a'.repeat(32),
+      })
+      expect(configured.success).toBe(true)
+
+      const missingToken = validateEnv({
+        ...baseConfig,
+        AGENT_ASSISTANT_URL: 'http://127.0.0.1:8010',
+      })
+      expect(missingToken.success).toBe(false)
+      expect(missingToken.errors?.some((error) => error.includes('AGENT_ASSISTANT_TOKEN'))).toBe(true)
+
+      const shortToken = validateEnv({
+        ...baseConfig,
+        AGENT_ASSISTANT_URL: 'http://127.0.0.1:8010',
+        AGENT_ASSISTANT_TOKEN: 'short',
+      })
+      expect(shortToken.success).toBe(false)
+    })
+
     it('rejects invalid or non-PostgreSQL DATABASE_URL formats', () => {
       const invalidUrls = [
         '',

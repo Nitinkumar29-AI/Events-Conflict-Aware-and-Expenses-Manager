@@ -46,7 +46,7 @@ export default function ReportsPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (role === 'VIEWER') {
+    if (role === 'VIEWER' || role === 'MEMBER') {
       router.push('/dashboard')
     }
   }, [role, router])
@@ -93,7 +93,7 @@ export default function ReportsPage() {
   }
 
   useEffect(() => {
-    if (!session?.user || role === 'VIEWER') return
+    if (!session?.user || role === 'VIEWER' || role === 'MEMBER') return
     loadActiveReport()
   }, [activeTab, selectedSemesterId, session, role])
 

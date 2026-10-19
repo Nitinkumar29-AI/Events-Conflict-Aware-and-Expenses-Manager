@@ -81,6 +81,7 @@ describe('Events & Calendar API Route Handlers (Integration)', () => {
       const data = await res.json()
       expect(data.success).toBe(true)
       expect(data.data.title).toBe('API Route Test Event')
+      expect(data.data.organizerName).toBe(codingRepUser.name)
       expect(data.data.status).toBe('DRAFT')
     })
 
@@ -453,6 +454,8 @@ describe('Events & Calendar API Route Handlers (Integration)', () => {
         expect(item).toHaveProperty('start')
         expect(item).toHaveProperty('end')
         expect(item).toHaveProperty('extendedProps')
+        expect(item.extendedProps).toHaveProperty('unresolvedConflictCount')
+        expect(item.extendedProps).toHaveProperty('highestConflictSeverity')
       }
     })
 

@@ -13,6 +13,7 @@ describe('Event Validators (Unit)', () => {
   describe('createEventSchema', () => {
     const validPayload = {
       title: 'Intro to Web Development',
+      organizerName: 'Campus Developer Club',
       description: 'Hands on workshop',
       eventType: EventType.WORKSHOP,
       clubId: 'club_123',
@@ -30,6 +31,7 @@ describe('Event Validators (Unit)', () => {
     it('passes with valid payload', () => {
       const parsed = createEventSchema.parse(validPayload)
       expect(parsed.title).toBe(validPayload.title)
+      expect(parsed.organizerName).toBe(validPayload.organizerName)
       expect(parsed.eventType).toBe(EventType.WORKSHOP)
       expect(parsed.targetYears).toEqual([1, 2])
     })
@@ -58,6 +60,10 @@ describe('Event Validators (Unit)', () => {
           title: 'AB',
         })
       ).toThrow()
+    })
+
+    it('rejects an organizer name that is too short', () => {
+      expect(() => createEventSchema.parse({ ...validPayload, organizerName: 'A' })).toThrow()
     })
 
     it('fails if endAt is before startAt', () => {
@@ -103,9 +109,11 @@ describe('Event Validators (Unit)', () => {
     it('allows partial updates', () => {
       const parsed = updateEventSchema.parse({
         title: 'Updated Event Title',
+        organizerName: 'Updated Organizer',
         expectedAttendees: 100,
       })
       expect(parsed.title).toBe('Updated Event Title')
+      expect(parsed.organizerName).toBe('Updated Organizer')
       expect(parsed.expectedAttendees).toBe(100)
     })
 

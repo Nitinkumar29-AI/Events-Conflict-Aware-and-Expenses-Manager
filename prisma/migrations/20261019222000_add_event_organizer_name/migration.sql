@@ -1,0 +1,1 @@
+ALTER TABLE "events" ADD COLUMN "organizerName" TEXT NOT NULL DEFAULT '';

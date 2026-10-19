@@ -190,10 +190,10 @@ describe('Authentication & Security Invariants Unit Tests', () => {
   })
 
   describe('OAuth role assignment security', () => {
-    it('verifies default role for new OAuth user is strictly VIEWER', () => {
-      // Invariant: New OAuth user must never receive ACM_CORE or SUPER_ADMIN
-      const defaultRole = UserRole.VIEWER
-      expect(defaultRole).toBe('VIEWER')
+    it('verifies default role for new OAuth user is the read-only MEMBER role', () => {
+      // Invariant: New OAuth users must never receive elevated roles
+      const defaultRole = UserRole.MEMBER
+      expect(defaultRole).toBe('MEMBER')
       expect(defaultRole).not.toBe(UserRole.ACM_CORE)
       expect(defaultRole).not.toBe(UserRole.SUPER_ADMIN)
       expect(defaultRole).not.toBe(UserRole.ACM_EXEC)

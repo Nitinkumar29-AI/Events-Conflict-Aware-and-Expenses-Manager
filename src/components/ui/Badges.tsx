@@ -255,6 +255,12 @@ export function RoleBadge({ role }: { role: string }) {
       text: 'text-emerald-700 font-medium',
       border: 'border-emerald-200',
     },
+    MEMBER: {
+      label: 'Campus Member',
+      bg: 'bg-cyan-50',
+      text: 'text-cyan-700 font-medium',
+      border: 'border-cyan-200',
+    },
     VIEWER: {
       label: 'Viewer',
       bg: 'bg-slate-100',
